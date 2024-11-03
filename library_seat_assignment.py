@@ -30,7 +30,6 @@ recent_input_time = ""
 library_system = None
 
 class User:
-
     # User class 생성자
     def __init__(self, student_id: str, name: str, password: str, last_login_time: Optional[str] = None):
 
@@ -50,9 +49,9 @@ class User:
             "password": self.password,
             "last_login_time": self.last_login_time
         }
-
+ 
 class Admin:
-    def __init__(self):
+    def __init__(self): # ** 
         self.id = "defaultadmin"  # 관리자 아이디
 
     def add_seats(self):
@@ -69,13 +68,13 @@ class Admin:
                 now_seats = library_system.get_seats()
 
                 # 중복 번호가 아닌 경우에만 추가
-                if any(seat["add_seat_number"] == add_seat_number for seat in now_seats):
+                if any(add_seat_number == add_seat_number for seat in now_seats):
                     print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
                     continue  # 다시 입력 받음
                 else:
                     now_seats.append({
-                        "add_seat_number": add_seat_number,
-                        "status": "○"  # 좌석을 사용 가능 상태로 초기화
+                        add_seat_number,
+                        "O"  # 좌석을 사용 가능 상태로 초기화
                     })
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
@@ -89,7 +88,7 @@ class Admin:
         """좌석 삭제 함수"""
         while True:
             # 사용 가능한 좌석이 1개 이하인지 확인
-            available_seats = [seat for seat in library_system.get_seats() if seat["status"] == "○"]
+            available_seats = [seat for seat in library_system.get_seats() if seat[2] == "O"]
             if len(available_seats) <= 1:
                 print("더 이상 좌석을 삭제할 수 없습니다.")
                 return  # 관리자 프롬프트로 돌아감
@@ -100,9 +99,9 @@ class Admin:
                 now_seats = library_system.get_seats()
 
                 # 좌석 번호가 존재하는지 확인
-                seat = next((s for s in now_seats if s["add_seat_number"] == remove_seat_number), None)
+                seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
                 if seat:
-                    seat["status"] = " "  # 상태를 빈 공간으로 변경하여 결번 처리
+                    seat[2] = " "  # 상태를 빈 공간으로 변경하여 결번 처리
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
                     print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
@@ -135,7 +134,7 @@ class LibrarySystem:
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
-    def show_seat_status(self, room_number):
+    def show_seat_status(self, room_number = 1):
         print(f"{room_number}번 열람실의 좌석 정보:")
         # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
         seat_count = 0
@@ -202,7 +201,7 @@ class LibrarySystem:
             print("이용중인 좌석이 없기 때문에 좌석 반납을 실행할 수 없습니다.")
             return
 
-    def check_expired_reservations(self):
+    def check_expired_reservations(self, now_time): # 통합 중 수정 : 누락된 인자 추가
         current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M")
         for seat in self.seats:
             if seat[2] == 'X' and seat[3] != '':
@@ -212,7 +211,8 @@ class LibrarySystem:
                     seat[3] = '0000-10-29 10:31'
                     seat[4] = '201000000'
         self.save_seat_data()
-    def max_seat_detect(room_number: int, seat_number: int) -> bool:
+
+    def max_seat_detect(self, seat_number: int, room_number: int = 1) -> bool:
         reading_room_list = {}
         
         if os.path.exists(READING_ROOM_DATA_FILE):
@@ -235,6 +235,7 @@ class LibrarySystem:
         else:
             print("좌석의 개수가 열람실 최대 한도를 초과합니다.")
             return False
+
     def check_four_day_consecutive_usage(self) -> bool:
         current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M")
         reservations = []
@@ -271,15 +272,13 @@ class LoginPrompt:
         self.user_data = [] 
         self.admin_data = []
 
-        self.user_prompt = UserPrompt()
-        self.admin_prompt = AdminPrompt()
+        self.user_prompt = UserPrompt(None, library_system) # 통합 중 수정 : 필요한 인자 추가
+        self.admin_prompt = AdminPrompt(None) # 통합 중 수정 : 필요한 인자 추가
 
     def run(self):
         while True:
             self.input_date_time()
             library_system.check_expired_reservations(recent_input_time)
-            # ** 재설계문서 수정 [완료] : 로그인 프롬프트 출력을 아래 메소드 내부에서 호출하도록 변경
-            # self.display_login_prompt()
             self.process_command_input()
     
     def input_date_time(self):
@@ -316,9 +315,8 @@ class LoginPrompt:
         print('로그인 프롬프트\n 1.사용자 회원가입\n 2.사용자 로그인\n 3.관리자 로그인\n')
 
     def process_command_input(self):
-        # ** 재설계 수정 [완료됨] ** 설계서에 루프와 break에 대한 내용이 없었으나 입력 오류를 처리하고 기획서대로 구현하기 위해서 추가
         while True:
-            self.display_login_prompt() # ** 재설계 수정 [완료됨] ** 설계서에 이 부분이 없지만 기획서와 동일하게 동작하게 만들기 위해서 추가
+            self.display_login_prompt() 
             menu = input("선택하세요>")
             if menu == "1":
                 self.register_user()
@@ -341,7 +339,6 @@ class LoginPrompt:
         duplicate_user = False
         have_duplicate_user = lambda existing_user, new_user : existing_user[0] == new_user[0]
 
-        # ** 요구분석서 수정 [해결됨] ** 기획서에서 절마다 이 부분 출력을 다르게 기술되어 있음
         print("회원가입을 진행합니다")
         while True:
             while True:
@@ -380,7 +377,6 @@ class LoginPrompt:
         '''
         사용자 로그인 
         '''
-        # ** 재설계문서 수정 [완료됨] ** 적어도 하나의 사용자가 존재해야지 사용자 로그인에 진입 가능함
         at_least_one_user_exists = False
         with open(USER_DATA_FILE, "r") as f:
             reader = csv.reader(f)
@@ -389,10 +385,11 @@ class LoginPrompt:
                     at_least_one_user_exists = True
   
         if at_least_one_user_exists == False:
-            print("가입된 이용자가 없어서 로그인 기능에 진입할 수 없습니다") # ** 요구분석서 확인 [필요] : 출력되는 메시지의 내용을 맞추어야 함
-            return False # ** 재설계문서 수정 [완료됨] : 새로운 리턴값을 추가해서 로그인 실패 시 로그인 프롬프트로 이동하도록 만듬
+            print("가입된 이용자가 없어서 로그인 기능에 진입할 수 없습니다") 
+            return False 
 
         user_id = ""
+        user_name = ""
         user_password = ""
         login_succeeded = False
         while True:
@@ -422,6 +419,7 @@ class LoginPrompt:
                 if len(record) != 0:
                     if record[0] == user_id and record[2] == user_password:
                         record[3] = recent_input_time
+                        user_name = record[1]
                         login_succeeded = True
 
                 user_records.append(record)
@@ -431,8 +429,8 @@ class LoginPrompt:
                 writer = csv.writer(f)
                 writer.writerows(user_records)
 
-            #library_system.user = User(user_id, None, None, recent_input_time)
-            library_system.user = User()
+            library_system.user = User(user_id, user_name, user_password, recent_input_time)
+            # library_system.user = User()
             self.user_prompt.handle_user_input()
             return True
         
@@ -589,7 +587,6 @@ class FileValidator:
     '''
     파일 무결성 검증 객체
     '''
-    ### 코드 설명 주석 달기!!!
     def validate_admin_data_file(self, check_record_syntax, check_meaning):
         '''
         관리자 정보 파일 검증 메소드
@@ -693,7 +690,7 @@ class FileValidator:
                 with open(SEAT_DATA_FILE, "w") as f:
                     writer = csv.writer(f)
                     for seat_number in range(1, 51):
-                        writer.writerow([seat_number, 1, 'X', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), '201000000'])
+                        writer.writerow([seat_number, 1, 'O', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), '201000000'])
             except:
                 print(f"ERROR : 새로운 {SEAT_DATA_FILE} 파일 생성에 실패했습니다!!! 프로그램을 종료합니다")
                 sys.exit()
@@ -715,7 +712,6 @@ class FileValidator:
         if not os.path.exists(SEAT_ASSIGNMENT_LOG_FILE):
             print(f"WARN : {SEAT_ASSIGNMENT_LOG_FILE} 파일이 존재하지 않습니다")
             print(f"{SEAT_ASSIGNMENT_LOG_FILE} 파일을 생성합니다...")
-            # ** 재설계 수정 [완료] : 파일 생성에 실패시 강제종료를 수행한다는 점이 구현에서 누락되었음
             try:
                 open(SEAT_ASSIGNMENT_LOG_FILE, "w")
             except:
@@ -747,7 +743,7 @@ class FileValidator:
                 sys.exit()
             return
         
-        record_count = 0 # ** 재설계 수정 [완료] : 파일에 레코드가 한개뿐인지 검증하는 것이 구현에서 누락됨 
+        record_count = 0 
         with open(READING_ROOM_DATA_FILE, "r") as f:
             reader = csv.reader(f)
             
@@ -780,7 +776,6 @@ class FileValidator:
         self.validate_seat_assignment_log_file(check_seat_assignment_log_syntax)
         self.validate_reading_room_data_file(check_reading_room_data_syntax)
 
-
 '''
 전역함수
 '''
@@ -805,7 +800,6 @@ def load_reading_room_data(record_to_entity = lambda x : [int(x[0]), int(x[1])])
                 reading_room_list.append(entity)
 
     # print("debug :", reading_room_list)
-
 
 def main():
     global library_system
