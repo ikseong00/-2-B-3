@@ -14,7 +14,7 @@ USER_NAME_SYNTAX_PATTERN = '^[가-힣a-zA-Z]+$'
 USER_ID_SYNTAX_PATTERN = r'^20([1-9]\d)\d{5}$'
 SEAT_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 TIME_SYNTAX_PATTERN = r"[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]$"
-SEAT_STATUS_SYNTAX_PATTERN="^[O|X]$"
+SEAT_STATUS_SYNTAX_PATTERN="^[OXD]$"
 READING_ROOM_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN = r'^[1-9]\d*$'
 
@@ -101,7 +101,7 @@ class Admin:
                 # 좌석 번호가 존재하는지 확인
                 seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
                 if seat:
-                    seat[2] = " "  # 상태를 빈 공간으로 변경하여 결번 처리
+                    seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
                     print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
@@ -148,6 +148,9 @@ class LibrarySystem:
                 # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
                 if self.user and seat[4] == self.user.student_id:
                     seat_row += f"{seat[0]:2}: [★]   "
+                elif seat[2] == "D" :
+                    seat_row += f""
+                    seat_count -= 1
                 else:
                     seat_row += f"{seat[0]:2}: [{seat[2]}]   "
                 
@@ -255,7 +258,7 @@ class LibrarySystem:
                 (reservations[i + 2] - reservations[i + 1]).days == 1 and
                 (reservations[i + 3] - reservations[i + 2]).days == 1
             ):
-                print(reservations[3])
+                # print(reservations[3])
                 if (current_time - reservations[i + 3]).days <= 1:
                     print("4일 연속 좌석을 예약할 수 없습니다.")
                     return True
@@ -691,11 +694,11 @@ class FileValidator:
                 with open(SEAT_DATA_FILE, "w") as f:
                     writer = csv.writer(f)
                     for seat_number in range(1, 51):
-                        writer.writerow([seat_number, 1, 'O', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), '201000000'])
+                        writer.writerow([seat_number, 1, 'O', '0000-10-29 10:31', '201000000'])
             except:
                 print(f"ERROR : 새로운 {SEAT_DATA_FILE} 파일 생성에 실패했습니다!!! 프로그램을 종료합니다")
                 sys.exit()
-            return
+            return 
        
         with open(SEAT_DATA_FILE, "r") as f:
             reader = csv.reader(f)
