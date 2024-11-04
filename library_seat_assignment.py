@@ -62,7 +62,6 @@ class Admin:
                 add_seat_number = int(add_seat_number)
                 # 좌석 추가 가능 여부 확인
                 if not library_system.max_seat_detect(1):
-                    print("최대 좌석 개수 초과로 좌석 추가가 불가합니다.")
                     return  # 관리자 프롬프트로 돌아감
 
                 now_seats = library_system.get_seats()
@@ -98,13 +97,16 @@ class Admin:
                 # 좌석 번호가 존재하는지 확인
                 seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
                 if seat:
+                    if seat[2] = "X":
+                        continue
+                    elif seat[2] = "D":
+                        continue
                     seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
                     print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
                     break
                 else:
-                    print("해당 좌석 번호가 존재하지 않습니다.")
                     continue
             else:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
@@ -554,7 +556,6 @@ class AdminPrompt:
                 elif choice == 3:
                     logout_selected = self.logout_admin()  # 로그아웃 처리
                     if logout_selected:
-                        LoginPrompt().input_date_time()
                         break  # while 루프 종료
 
             else:
