@@ -127,7 +127,8 @@ class LibrarySystem:
             with open(SEAT_DATA_FILE, "r") as f:
                 reader = csv.reader(f)
                 for record in reader:
-                    self.seats.append([int(record[0]), int(record[1]), record[2], record[3], record[4]])
+                    if len(record) != 0:
+                        self.seats.append([int(record[0]), int(record[1]), record[2], record[3], record[4]])
 
     def save_seat_data(self):
         with open(SEAT_DATA_FILE, "w", newline='') as f:
