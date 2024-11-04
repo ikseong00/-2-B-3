@@ -61,21 +61,18 @@ class Admin:
             if add_seat_number.isdigit():
                 add_seat_number = int(add_seat_number)
                 # 좌석 추가 가능 여부 확인
-                if not library_system.max_seat_detect(add_seat_number):
+                if not library_system.max_seat_detect(1):
                     print("최대 좌석 개수 초과로 좌석 추가가 불가합니다.")
                     return  # 관리자 프롬프트로 돌아감
 
                 now_seats = library_system.get_seats()
 
                 # 중복 번호가 아닌 경우에만 추가
-                if any(add_seat_number == add_seat_number for seat in now_seats):
+                if any(seat[0] == add_seat_number for seat in now_seats):
                     print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
                     continue  # 다시 입력 받음
                 else:
-                    now_seats.append({
-                        add_seat_number,
-                        "O"  # 좌석을 사용 가능 상태로 초기화
-                    })
+                    now_seats.append([add_seat_number, 1, "O", "", ""]
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
                     print(f"{add_seat_number}번 좌석 추가가 완료되었습니다.")
@@ -101,7 +98,7 @@ class Admin:
                 # 좌석 번호가 존재하는지 확인
                 seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
                 if seat:
-                    seat[2] = " "  # 상태를 빈 공간으로 변경하여 결번 처리
+                    seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
                     print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
