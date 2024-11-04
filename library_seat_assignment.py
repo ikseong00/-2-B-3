@@ -61,10 +61,11 @@ class Admin:
             if add_seat_number.isdigit():
                 add_seat_number = int(add_seat_number)
                 # 좌석 추가 가능 여부 확인
+                
+                if add_seat_number < 1:
+                    continue  # 다시 입력 받음
 
                 if not library_system.max_seat_detect(1):
-                    print("최대 좌석 개수 초과로 좌석 추가가 불가합니다.")
-
                     return  # 관리자 프롬프트로 돌아감
 
                 now_seats = library_system.get_seats()
