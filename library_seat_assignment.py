@@ -14,7 +14,7 @@ USER_NAME_SYNTAX_PATTERN = '^[가-힣a-zA-Z]+$'
 USER_ID_SYNTAX_PATTERN = r'^20([1-9]\d)\d{5}$'
 SEAT_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 TIME_SYNTAX_PATTERN = r"[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0-3]|[01][0-9]):[0-5][0-9]$"
-SEAT_STATUS_SYNTAX_PATTERN="^[O|X]$"
+SEAT_STATUS_SYNTAX_PATTERN="^[OXD]$"
 READING_ROOM_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN = r'^[1-9]\d*$'
 
@@ -61,20 +61,22 @@ class Admin:
             if add_seat_number.isdigit():
                 add_seat_number = int(add_seat_number)
                 # 좌석 추가 가능 여부 확인
-                # if not library_system.max_seat.detect(add_seat_number): 에서 수정 24.11.04
+
                 if not library_system.max_seat_detect(1):
+                    print("최대 좌석 개수 초과로 좌석 추가가 불가합니다.")
+
                     return  # 관리자 프롬프트로 돌아감
 
                 now_seats = library_system.get_seats()
 
                 # 중복 번호가 아닌 경우에만 추가
-                # if any(add_seat_number == add_seat_number for seat in now_seats):에서 수정 24.11.04
+
                 if any(seat[0] == add_seat_number for seat in now_seats):
                     print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
                     continue  # 다시 입력 받음
                 else:
-                    #좌석 정보를 리스트 형태로 변경 24.11.04 여기서 seat_data 레코드 문제가???
-                    now_seats.append([add_seat_number, 1, "O", "", ""]
+                    now_seats.append([add_seat_number, 1, "O", '0000-10-29 10:31', '201000000'])
+
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
                     print(f"{add_seat_number}번 좌석 추가가 완료되었습니다.")
@@ -100,15 +102,12 @@ class Admin:
                 # 좌석 번호가 존재하는지 확인
                 seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
                 if seat:
-                    if seat[2] = "X": # 좌석이 예약된 좌석("X")은 삭제하지 않음. 24.11.04
-                        continue
-                    elif seat[2] = "D": # 좌석이 이미 삭제된 ("D") 것은 삭제하지 않음. 24.11.04
-                        continue
-                    seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
-                    library_system.seats = now_seats
-                    library_system.save_seat_data()  # 좌석 데이터 저장
-                    print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
-                    break
+                    if seat[2] == "O":
+                        seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
+                        library_system.seats = now_seats
+                        library_system.save_seat_data()  # 좌석 데이터 저장
+                        print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
+                        break
                 else:
                     continue
             else:
@@ -150,6 +149,8 @@ class LibrarySystem:
                 # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
                 if self.user and seat[4] == self.user.student_id:
                     seat_row += f"{seat[0]:2}: [★]   "
+                elif seat[2] == "D" :
+                    seat_count -= 1
                 else:
                     seat_row += f"{seat[0]:2}: [{seat[2]}]   "
                 
@@ -257,7 +258,7 @@ class LibrarySystem:
                 (reservations[i + 2] - reservations[i + 1]).days == 1 and
                 (reservations[i + 3] - reservations[i + 2]).days == 1
             ):
-                print(reservations[3])
+                # print(reservations[3])
                 if (current_time - reservations[i + 3]).days <= 1:
                     print("4일 연속 좌석을 예약할 수 없습니다.")
                     return True
@@ -559,7 +560,6 @@ class AdminPrompt:
                 elif choice == 3:
                     logout_selected = self.logout_admin()  # 로그아웃 처리
                     if logout_selected:
-                        # LoginPrompt().input_date_time() 삭제 24.11.04
                         break  # while 루프 종료
 
             else:
@@ -693,11 +693,11 @@ class FileValidator:
                 with open(SEAT_DATA_FILE, "w") as f:
                     writer = csv.writer(f)
                     for seat_number in range(1, 51):
-                        writer.writerow([seat_number, 1, 'O', datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), '201000000'])
+                        writer.writerow([seat_number, 1, 'O', '0000-10-29 10:31', '201000000'])
             except:
                 print(f"ERROR : 새로운 {SEAT_DATA_FILE} 파일 생성에 실패했습니다!!! 프로그램을 종료합니다")
                 sys.exit()
-            return
+            return 
        
         with open(SEAT_DATA_FILE, "r") as f:
             reader = csv.reader(f)
