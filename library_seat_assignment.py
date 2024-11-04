@@ -61,16 +61,19 @@ class Admin:
             if add_seat_number.isdigit():
                 add_seat_number = int(add_seat_number)
                 # 좌석 추가 가능 여부 확인
+                # if not library_system.max_seat.detect(add_seat_number): 에서 수정 24.11.04
                 if not library_system.max_seat_detect(1):
                     return  # 관리자 프롬프트로 돌아감
 
                 now_seats = library_system.get_seats()
 
                 # 중복 번호가 아닌 경우에만 추가
+                # if any(add_seat_number == add_seat_number for seat in now_seats):에서 수정 24.11.04
                 if any(seat[0] == add_seat_number for seat in now_seats):
                     print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
                     continue  # 다시 입력 받음
                 else:
+                    #좌석 정보를 리스트 형태로 변경 24.11.04 여기서 seat_data 레코드 문제가???
                     now_seats.append([add_seat_number, 1, "O", "", ""]
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
@@ -97,9 +100,9 @@ class Admin:
                 # 좌석 번호가 존재하는지 확인
                 seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
                 if seat:
-                    if seat[2] = "X":
+                    if seat[2] = "X": # 좌석이 예약된 좌석("X")은 삭제하지 않음. 24.11.04
                         continue
-                    elif seat[2] = "D":
+                    elif seat[2] = "D": # 좌석이 이미 삭제된 ("D") 것은 삭제하지 않음. 24.11.04
                         continue
                     seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
                     library_system.seats = now_seats
@@ -556,6 +559,7 @@ class AdminPrompt:
                 elif choice == 3:
                     logout_selected = self.logout_admin()  # 로그아웃 처리
                     if logout_selected:
+                        # LoginPrompt().input_date_time() 삭제 24.11.04
                         break  # while 루프 종료
 
             else:
