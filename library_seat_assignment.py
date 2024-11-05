@@ -322,7 +322,7 @@ class LoginPrompt:
     def process_command_input(self):
         while True:
             self.display_login_prompt() 
-            menu = input("선택하세요>")
+            menu = input("선택하세요 > ")
             if menu == "1":
                 self.register_user()
             elif menu == "2":
@@ -436,6 +436,7 @@ class LoginPrompt:
 
             library_system.user = User(user_id, user_name, user_password, recent_input_time)
             # library_system.user = User()
+            print("로그인이 완료되었습니다.")
             self.user_prompt.handle_user_input()
             return True
         
@@ -541,6 +542,7 @@ class AdminPrompt:
 
     def display_admin_menu(self):
         """관리자 메뉴를 출력하는 함수"""
+        print("관리자용 프롬프트")
         print("1. 좌석 추가")
         print("2. 좌석 삭제")
         print("3. 관리자 로그아웃(종료)")
