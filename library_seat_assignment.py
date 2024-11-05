@@ -56,8 +56,9 @@ class Admin:
 
     def add_seats(self):
         """좌석 추가 함수"""
+        print("좌석 추가")
         while True:
-            add_seat_number = input("추가할 좌석 번호 입력 : ")
+            add_seat_number = input("추가할 좌석 번호 입력 > ")
             if add_seat_number.isdigit():
                 add_seat_number = int(add_seat_number)
                 # 좌석 추가 가능 여부 확인
@@ -73,14 +74,12 @@ class Admin:
                 # 중복 번호가 아닌 경우에만 추가
 
                 if any(seat[0] == add_seat_number for seat in now_seats):
-                    print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
                     continue  # 다시 입력 받음
                 else:
                     now_seats.append([add_seat_number, 1, "O", '0000-10-29 10:31', '201000000'])
 
                     library_system.seats = now_seats
                     library_system.save_seat_data()  # 좌석 데이터 저장
-                    print(f"{add_seat_number}번 좌석 추가가 완료되었습니다.")
                     break
             else:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
@@ -88,6 +87,7 @@ class Admin:
 
     def remove_seats(self):
         """좌석 삭제 함수"""
+        print("좌석 삭제")
         while True:
             # 사용 가능한 좌석이 1개 이하인지 확인
             available_seats = [seat for seat in library_system.get_seats() if seat[2] == "O"]
@@ -95,7 +95,7 @@ class Admin:
                 print("더 이상 좌석을 삭제할 수 없습니다.")
                 return  # 관리자 프롬프트로 돌아감
 
-            remove_seat_number = input("삭제할 좌석 번호 입력 : ")
+            remove_seat_number = input("삭제할 좌석 번호 입력 > ")
             if remove_seat_number.isdigit():
                 remove_seat_number = int(remove_seat_number)
                 now_seats = library_system.get_seats()
@@ -167,8 +167,9 @@ class LibrarySystem:
             return
         for seat in self.seats :
             if self.user.student_id == seat[4] :
-                print("이용중인 좌석이 있습니다.\n")
+                print("좌석은 한 자리만 배정받을 수 있습니다.\n")
                 return
+        print("좌석 배정")
         seat_number = int(input("좌석번호 입력 > "))
         for seat in self.seats:
             if seat[0] == seat_number and seat[2] == 'O':
@@ -199,11 +200,11 @@ class LibrarySystem:
                     seat[3] = '0000-10-29 10:31'
                     seat[4] = '201000000'
                     self.save_seat_data()
-                    print(f"{seat_number}번 좌석이 반납되었습니다.")
+                    print("좌석 반납이 완료되었습니다.")
                     return
-            print("반납할수 없는 좌석입니다.")
+            print("반납할 수 없는 좌석입니다.")
         else:
-            print("이용중인 좌석이 없기 때문에 좌석 반납을 실행할 수 없습니다.")
+            print("현재 사용자는 배정받은 좌석이 없기 때문에 좌석을 좌석 반납을 할 수 없습니다.")
             return
 
     def check_expired_reservations(self, now_time): # 통합 중 수정 : 누락된 인자 추가
@@ -238,7 +239,7 @@ class LibrarySystem:
         if room_number in reading_room_list and total_number <= reading_room_list[room_number]:
             return True
         else:
-            print("좌석의 개수가 열람실 최대 한도를 초과합니다.")
+            print("최대 한도를 초과합니다.")
             return False
 
     def check_four_day_consecutive_usage(self) -> bool:
@@ -261,7 +262,7 @@ class LibrarySystem:
             ):
                 # print(reservations[3])
                 if (current_time - reservations[i + 3]).days <= 1:
-                    print("4일 연속 좌석을 예약할 수 없습니다.")
+                    print("4일 연속 좌석을 배정할 수 없습니다.")
                     return True
                 else:
                     return False
@@ -566,15 +567,15 @@ class AdminPrompt:
                         break  # while 루프 종료
 
             else:
-                # 오류 메시지 없이 다시 사용자 메뉴로 돌아감
+                # 오류 메시지 없이 다시 관리자 메뉴로 돌아감
                 continue
 
     def logout_admin(self):
         """관리자 로그아웃 처리"""
         input_value = None  # 로그아웃 여부 저장하는 변수
-
+        print("관리자 로그아웃(종료)")
         while True:
-            input_value = input("로그아웃 하시겠습니까? : ")
+            input_value = input("로그아웃 하시겠습니까? > ")
 
             if input_value == "Y":
                 print("로그아웃이 완료되었습니다.")
@@ -582,7 +583,7 @@ class AdminPrompt:
                 return True  # 로그아웃 여부 리턴
 
             elif input_value == "N":
-                return False  # 사용자 프롬프트로 복귀
+                return False  # 관리자 프롬프트로 복귀
 
 
             else:
