@@ -71,11 +71,17 @@ class Admin:
 
                 now_seats = library_system.get_seats()
 
-                # 중복 번호가 아닌 경우에만 추가
-                if any(seat[0] == add_seat_number and seat[2] != "D" for seat in now_seats):
-                    print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
-
+                # 이미 존재하는 좌석 번호 중 상태가 'D'인 좌석을 찾아서 상태를 변경
+                seat_to_restore = next((seat for seat in now_seats if seat[0] == add_seat_number and seat[2] == "D"), None)
+                if seat_to_restore:
+                    seat_to_restore[2] = "O"  # 상태를 'O'로 변경
+                    seat_to_restore[3] = '0000-10-29 10:31'
+                    seat_to_restore[4] = '201000000'
+                    library_system.save_seat_data()
+                    break
+                elif any(seat[0] == add_seat_number and seat[2] != "D" for seat in now_seats):
                     continue  # 다시 입력 받음
+
                 else:
                     now_seats.append([add_seat_number, 1, "O", '0000-10-29 10:31', '201000000'])
 
@@ -528,7 +534,7 @@ class UserPrompt:
     def logout_user(self):
 
         while True:
-            confirm = input("로그아웃 하시겠습니까? > ")
+            confirm = input("로그아웃 하시겠습니까?(Y/N) > ")
             if confirm in ["Y", "N"]:
                 if confirm == "Y":
                     return True
