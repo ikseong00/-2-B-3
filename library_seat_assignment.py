@@ -498,7 +498,7 @@ class UserPrompt:
 
     def display_user_menu(self):
         print("사용자용 프롬프트")
-        print("1. 도서관 좌석 조회\n2. 좌석 배정\n3.좌석 반납\n4.사용자 로그아웃(종료)")
+        print("1. 도서관 좌석 조회\n2. 좌석 배정\n3. 좌석 반납\n4. 사용자 로그아웃(종료)")
 
     def handle_user_input(self):
     
