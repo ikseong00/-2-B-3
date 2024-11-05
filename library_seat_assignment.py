@@ -72,8 +72,9 @@ class Admin:
                 now_seats = library_system.get_seats()
 
                 # 중복 번호가 아닌 경우에만 추가
+                if any(seat[0] == add_seat_number and seat[2] != "D" for seat in now_seats):
+                    print(f"{add_seat_number}번 좌석은 이미 존재합니다.")
 
-                if any(seat[0] == add_seat_number for seat in now_seats):
                     continue  # 다시 입력 받음
                 else:
                     now_seats.append([add_seat_number, 1, "O", '0000-10-29 10:31', '201000000'])
@@ -195,14 +196,25 @@ class LibrarySystem:
         if(cancel): 
             seat_number = int(input("반납할 좌석번호: "))
             for seat in self.seats:
-                if seat[0] == seat_number and (seat[2] == 'X') and seat[4] == self.user.student_id:
-                    seat[2] = 'O'
-                    seat[3] = '0000-10-29 10:31'
-                    seat[4] = '201000000'
-                    self.save_seat_data()
-                    print("좌석 반납이 완료되었습니다.")
-                    return
-            print("반납할 수 없는 좌석입니다.")
+
+                if seat[0] == seat_number and (seat[2] == 'X') and seat[4] == self.user.student_id:  
+                    while True:
+                        check_cancel = input("정말로 반납하시겠습니까?(Y|N) : ")
+                        if check_cancel in ["Y", "N"]:
+                            if check_cancel == "Y":
+                                seat[2] = 'O'
+                                seat[3] = '0000-10-29 10:31'
+                                seat[4] = '201000000'
+                                self.save_seat_data()
+                                print(f"{seat_number}번 좌석이 반납되었습니다.")
+                                return
+                            else:
+                                print("반납에 실패하였습니다.") 
+                                return False
+                        else:
+                            continue
+            print("반납할수 없는 좌석입니다.")
+
         else:
             print("현재 사용자는 배정받은 좌석이 없기 때문에 좌석을 좌석 반납을 할 수 없습니다.")
             return
@@ -218,25 +230,12 @@ class LibrarySystem:
                     seat[4] = '201000000'
         self.save_seat_data()
 
-    def max_seat_detect(self, seat_number: int, room_number: int = 1) -> bool:
-        reading_room_list = {}
-        
-        if os.path.exists(READING_ROOM_DATA_FILE):
-            with open(READING_ROOM_DATA_FILE, "r") as f:
-                reader = csv.reader(f)
-                for record in reader:
-                    if len(record) == 0:
-                        continue
-                    room_no = int(record[0].strip())
-                    seat_limit = int(record[1].strip())
-                    reading_room_list[room_no] = seat_limit
-        else:
-            print(f"ERROR: {READING_ROOM_DATA_FILE} 파일이 존재하지 않습니다.")
-            return False
-        current_seat_count = sum(1 for seat in library_system.get_seats() if seat[1] == room_number)
+    def max_seat_detect(self, seat_number: int=1, room_number: int=1 ) -> bool:
+        max_seat_limit = next((reading_room_data[1] for reading_room_data in reading_room_list if reading_room_data[0] == room_number), None)
+        current_seat_count = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
         total_number = current_seat_count + seat_number
 
-        if room_number in reading_room_list and total_number <= reading_room_list[room_number]:
+        if total_number <= max_seat_limit:
             return True
         else:
             print("최대 한도를 초과합니다.")
