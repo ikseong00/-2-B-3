@@ -169,14 +169,14 @@ class LibrarySystem:
             if self.user.student_id == seat[4] :
                 print("이용중인 좌석이 있습니다.\n")
                 return
-        seat_number = int(input("예약할 좌석번호: "))
+        seat_number = int(input("좌석번호 입력 > "))
         for seat in self.seats:
             if seat[0] == seat_number and seat[2] == 'O':
                 seat[2] = 'X'
                 seat[3] = recent_input_time
                 seat[4] = self.user.student_id
                 self.save_seat_data()
-                print(f"{seat_number}번 좌석이 예약되었습니다.")
+                print("좌석 배정이 완료되었습니다.")
                 
                 # 예약 기록 저장
                 with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
