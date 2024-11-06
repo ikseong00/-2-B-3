@@ -59,13 +59,9 @@ class Admin:
         print("좌석 추가")
         while True:
             add_seat_number = input("추가할 좌석 번호 입력 > ")
-            if add_seat_number.isdigit():
+            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, add_seat_number) != None:
                 add_seat_number = int(add_seat_number)
-                # 좌석 추가 가능 여부 확인
-                
-                if add_seat_number < 1:
-                    continue  # 다시 입력 받음
-
+    
                 if not library_system.max_seat_detect(1):
                     return  # 관리자 프롬프트로 돌아감
 
@@ -170,108 +166,151 @@ class LibrarySystem:
             print(seat_row) 
 
     def reserve_seat(self):
-        if self.check_four_day_consecutive_usage() :
+        if self.check_four_day_consecutive_usage():
             return
-        for seat in self.seats :
-            if self.user.student_id == seat[4] :
-                print("좌석은 한 자리만 배정받을 수 있습니다.\n")
+        
+        for seat in self.seats:
+            if self.user.student_id == seat[4]:
+                print("이용중인 좌석이 있습니다.\n")
                 return
-        print("좌석 배정")
-        seat_number = int(input("좌석번호 입력 > "))
+        
+        while True:
+            seat_number = input("좌석번호 입력> ")
+            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number) != None:
+                seat_number = int(seat_number)
+                break
+           
         for seat in self.seats:
             if seat[0] == seat_number and seat[2] == 'O':
                 seat[2] = 'X'
                 seat[3] = recent_input_time
                 seat[4] = self.user.student_id
                 self.save_seat_data()
-                print("좌석 배정이 완료되었습니다.")
-                
+                print("좌석배정이 완료되었습니다.")
+
                 # 예약 기록 저장
                 with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
                     writer = csv.writer(f)
                     writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
-                    
-                return
-        
 
+                return
+            
     def cancel_reservation(self):
-        cancel = False
+        # print("debug : seats = "self.seats)
+
+        found_seat = None
         for seat in self.seats:
             if self.user.student_id == seat[4]:
-                cancel = True
-        if(cancel): 
-            seat_number = int(input("반납할 좌석번호: "))
-            for seat in self.seats:
-
-                if seat[0] == seat_number and (seat[2] == 'X') and seat[4] == self.user.student_id:  
-                    while True:
-                        check_cancel = input("정말로 반납하시겠습니까?(Y|N) : ")
-                        if check_cancel in ["Y", "N"]:
-                            if check_cancel == "Y":
-                                seat[2] = 'O'
-                                seat[3] = '0000-10-29 10:31'
-                                seat[4] = '201000000'
-                                self.save_seat_data()
-                                print(f"{seat_number}번 좌석이 반납되었습니다.")
-                                return
-                            else:
-                                print("반납에 실패하였습니다.") 
-                                return False
-                        else:
-                            continue
-            print("반납할수 없는 좌석입니다.")
-
+                found_seat = seat
+                
+        if found_seat:
+            while True:
+                check_cancel = input("좌석을 반납하시겠습니까?> ")
+                if check_cancel in ["Y", "N"]:
+                    if check_cancel == "Y":
+                        found_seat[2] = 'O'
+                        found_seat[3] = '0000-10-29 10:31'
+                        found_seat[4] = '201000000'
+                        self.save_seat_data()
+                        print("좌석 반납이 완료되었습니다.")
+                        return
+                    else:
+                        print("좌석 반납이 완료되지 않았습니다.") 
+                        return
         else:
-            print("현재 사용자는 배정받은 좌석이 없기 때문에 좌석을 좌석 반납을 할 수 없습니다.")
-            return
-
+            print("이용중인 좌석이 없기 때문에 좌석 반납을 실행할 수 없습니다.")
+        
     def check_expired_reservations(self, now_time): # 통합 중 수정 : 누락된 인자 추가
         current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M")
+        MAX_USAGE_TIME = 3*60*60 #이변수로 자동반납 시간 결정 가능.
         for seat in self.seats:
             if seat[2] == 'X' and seat[3] != '':
                 reserve_time = datetime.datetime.strptime(seat[3], "%Y-%m-%d %H:%M")
-                if (current_time - reserve_time).total_seconds() > 3 * 60 * 60:  # 3 hours
+                if (current_time - reserve_time).total_seconds() > MAX_USAGE_TIME: 
                     seat[2] = 'O'
                     seat[3] = '0000-10-29 10:31'
                     seat[4] = '201000000'
         self.save_seat_data()
 
     def max_seat_detect(self, seat_number: int=1, room_number: int=1 ) -> bool:
-        max_seat_limit = next((reading_room_data[1] for reading_room_data in reading_room_list if reading_room_data[0] == room_number), None)
+        
+        max_seat_limit = next((limit[1] for limit in reading_room_list if limit[0] == room_number), None)
         current_seat_count = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
         total_number = current_seat_count + seat_number
-
         if total_number <= max_seat_limit:
             return True
         else:
-            print("최대 한도를 초과합니다.")
             return False
-
+    
     def check_four_day_consecutive_usage(self) -> bool:
-        current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M")
+        current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
+        MAX_CONSECUTIVE_DAYS = 3  # 확장성 고려. 이변수로 n일연속여부 체크가능.
+        consecutive_usage_limit_exceeded = False
+
         reservations = []
         with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
             reader = csv.reader(f)
             for record in reader:
-                if record[0] == self.user.student_id:
-                    reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M")
-                    reservations.append(reservation_time)
-        if len(reservations) < 4:
+                if len(record) != 0:
+                    if record[0] == self.user.student_id:
+                        reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
+                        reservations.append(reservation_time)
+        reservations.append(current_time)
+
+        if len(reservations) < MAX_CONSECUTIVE_DAYS:
             return False
+        
+        # print("debug : current_time = ", current_time)
+        # print("debug : reservations[-1] = ", reservations[-1])
+            
         reservations.sort()
-        for i in range(len(reservations) - 3):
-            if (
-                (reservations[i + 1] - reservations[i]).days == 1 and
-                (reservations[i + 2] - reservations[i + 1]).days == 1 and
-                (reservations[i + 3] - reservations[i + 2]).days == 1
-            ):
-                # print(reservations[3])
-                if (current_time - reservations[i + 3]).days <= 1:
-                    print("4일 연속 좌석을 배정할 수 없습니다.")
-                    return True
-                else:
-                    return False
-        return False
+
+        # print("debug : reservations = ", reservations)
+
+        consecutive_day_count = 0   
+        for i in range(len(reservations) - 1, 1, -1):
+            if (reservations[i] - reservations[i - 1]).days == 1:
+                consecutive_day_count += 1
+                if consecutive_day_count >= MAX_CONSECUTIVE_DAYS:
+                    print(f"{MAX_CONSECUTIVE_DAYS}일 연속 좌석을 배정할 수 없습니다.")
+                    consecutive_usage_limit_exceeded = True
+                    break
+            elif (reservations[i] - reservations[i - 1]).days > 1:
+                break
+        
+        return consecutive_usage_limit_exceeded
+
+    # def check_four_day_consecutive_usage(self) -> bool:
+    #     current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
+    #     limit = 3  # 확장성 고려 이변수로 n일연속여부 체크가능.
+    #     reservations = []
+
+    #     with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
+    #         reader = csv.reader(f)
+    #         for record in reader:
+    #             if record[0] == self.user.student_id:
+    #                 reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
+    #                 reservations.append(reservation_time)
+
+    #     if len(reservations) < limit:
+    #         return False
+        
+    #     print("debug : reservations = ", reservations)
+
+    #     reservations.sort()
+    #     for i in range(len(reservations) - (limit - 1)):
+    #         consecutive = True
+    #         for j in range(limit - 1):
+    #             if (reservations[i + j + 1] - reservations[i + j]).days != 1:
+    #                 consecutive = False
+    #                 break
+    #         if consecutive:
+    #             if (current_time - reservations[i + limit - 1]).days <= 1:
+    #                 print(f"{limit}일 연속 좌석을 배정할 수 없습니다.")
+    #                 return True
+    #             else:
+    #                 return False
+    #     return False
 
 class LoginPrompt:
     '''
