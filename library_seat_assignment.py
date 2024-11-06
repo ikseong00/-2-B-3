@@ -358,8 +358,7 @@ class LoginPrompt:
                 recent_input_time = input_time
                 break
             else:
-                print("과거의 시간을 입력할 수 없습니다. 다시 입력해주세요")
-                # print("debug : 과거의 시간을 입력할 수 없습니다")
+                print("잘못된 입력입니다")
 
     def display_login_prompt(self):
         print('로그인 프롬프트\n 1.사용자 회원가입\n 2.사용자 로그인\n 3.관리자 로그인\n')
