@@ -165,20 +165,17 @@ class LibrarySystem:
     def show_seat_status(self, room_number = 1, show_status_mode = "default"):
         print(f"{room_number}번 열람실의 좌석 정보:")
        
-        # 재설계 문서 [수정 필요 없음] : 요구사항 대비를 위해서 좌석 상태 출력 함수를 만드려고 했으나 제어 변수로 분기하는 것으로 변경
-        reading_room_seats = []
+        seats = []
         for seat in self.seats:
             if seat[1] == room_number:
-                reading_room_seats.append(seat)
+                seats.append(seat)
                 
-        # print_seat_status(reading_room_seats, self.user.student_id)
-
         if show_status_mode == "default":
             STATUS_ROW_LENGTH = 10
             seat_count = 0
             seat_status = ""
             
-            for seat in self.seats:
+            for seat in seats:
                 seat_count += 1
                 
                 # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
@@ -204,36 +201,35 @@ class LibrarySystem:
                 print("이용중인 좌석이 있습니다.\n")
                 return
         while True:
-            try:
-                seat_number = int(input("좌석번호 입력> "))
-                # 좌석 정보 확인
-                seat_found = False
-                for seat in self.seats:
-                    if seat[0] == seat_number:
-                        seat_found = True
-                        if seat[2] == 'O':
-                            seat[2] = 'X'
-                            seat[3] = recent_input_time
-                            seat[4] = self.user.student_id
-                            self.save_seat_data()
-                            print("좌석배정이 완료되었습니다.")
-                            # 예약 기록 저장
-                            with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
-                                writer = csv.writer(f)
-                                writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
-                            return
-                        else:
-                            break
-                if not seat_found:
-                    continue
-            except ValueError:
+            seat_number = input("좌석번호 입력> ")
+            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number) == None:
                 continue
+                
+            # 좌석 정보 확인
+            seat_number = int(seat_number)
+            for seat in self.seats:
+                if seat[0] == seat_number:
+                    if seat[2] == 'O':
+                        seat[2] = 'X'
+                        seat[3] = recent_input_time
+                        seat[4] = self.user.student_id
+                        self.save_seat_data()
+                        print("좌석배정이 완료되었습니다.")
+                        # 예약 기록 저장
+                        with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
+                        return
+                    else:
+                        break
+            
+           
             
     def cancel_reservation(self):
         cancel = any(seat[4] == self.user.student_id and seat[2] == 'X' for seat in self.seats)
         if cancel:
             while True:
-                check_cancel = input("좌석을 반납하시겠습니까? > ")
+                check_cancel = input("좌석을 반납하시겠습니까?(Y/N) > ")
                 if check_cancel == "Y":
                     for seat in self.seats:
                         if seat[4] == self.user.student_id and seat[2] == 'X':
@@ -655,7 +651,7 @@ class AdminPrompt:
         input_value = None  # 로그아웃 여부 저장하는 변수
         print("관리자 로그아웃(종료)")
         while True:
-            input_value = input("로그아웃 하시겠습니까? > ")
+            input_value = input("로그아웃 하시겠습니까?(Y/N) > ")
 
             if input_value == "Y":
                 print("로그아웃이 완료되었습니다.")
