@@ -196,36 +196,39 @@ class LibrarySystem:
                     seat_status += "\n"
                 
             print(seat_status)
- 
+            
     def reserve_seat(self):
+        if self.check_four_day_consecutive_usage():
+            return
         for seat in self.seats:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
                 return
-        
         while True:
-            seat_number = input("좌석번호 입력> ")
-            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number) != None:
-                seat_number = int(seat_number)
-                break
-           
-        if self.check_four_day_consecutive_usage():
-            return
-
-        for seat in self.seats:
-            if seat[0] == seat_number and seat[2] == 'O':
-                seat[2] = 'X'
-                seat[3] = recent_input_time
-                seat[4] = self.user.student_id
-                self.save_seat_data()
-                print("좌석배정이 완료되었습니다.")
-
-                # 예약 기록 저장
-                with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
-
-                return
+            try:
+                seat_number = int(input("좌석번호 입력> "))
+                # 좌석 정보 확인
+                seat_found = False
+                for seat in self.seats:
+                    if seat[0] == seat_number:
+                        seat_found = True
+                        if seat[2] == 'O':
+                            seat[2] = 'X'
+                            seat[3] = recent_input_time
+                            seat[4] = self.user.student_id
+                            self.save_seat_data()
+                            print("좌석배정이 완료되었습니다.")
+                            # 예약 기록 저장
+                            with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
+                                writer = csv.writer(f)
+                                writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
+                            return
+                        else:
+                            break
+                if not seat_found:
+                    continue
+            except ValueError:
+                continue
             
     def cancel_reservation(self):
         cancel = any(seat[4] == self.user.student_id and seat[2] == 'X' for seat in self.seats)
