@@ -309,38 +309,6 @@ class LibrarySystem:
         
         return consecutive_usage_limit_exceeded
 
-    # def check_four_day_consecutive_usage(self) -> bool:
-    #     current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
-    #     limit = 3  # 확장성 고려 이변수로 n일연속여부 체크가능.
-    #     reservations = []
-
-    #     with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
-    #         reader = csv.reader(f)
-    #         for record in reader:
-    #             if record[0] == self.user.student_id:
-    #                 reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
-    #                 reservations.append(reservation_time)
-
-    #     if len(reservations) < limit:
-    #         return False
-        
-    #     print("debug : reservations = ", reservations)
-
-    #     reservations.sort()
-    #     for i in range(len(reservations) - (limit - 1)):
-    #         consecutive = True
-    #         for j in range(limit - 1):
-    #             if (reservations[i + j + 1] - reservations[i + j]).days != 1:
-    #                 consecutive = False
-    #                 break
-    #         if consecutive:
-    #             if (current_time - reservations[i + limit - 1]).days <= 1:
-    #                 print(f"{limit}일 연속 좌석을 배정할 수 없습니다.")
-    #                 return True
-    #             else:
-    #                 return False
-    #     return False
-
 class LoginPrompt:
     '''
     로그인 프롬프트 
