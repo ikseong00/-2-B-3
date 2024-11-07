@@ -119,7 +119,6 @@ class Admin:
                 continue
 
 # def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
-#     # 재설계 문서 [수정 필요] : 요구사항 대비 위해서 새로 추가된 함수
 #     seat_count = 0
 #     seat_status_row = ""
     
@@ -171,7 +170,7 @@ class LibrarySystem:
         for seat in self.seats:
             if seat[1] == room_number:
                 reading_room_seats.append(seat)
-
+                
         # print_seat_status(reading_room_seats, self.user.student_id)
 
         if show_status_mode == "default":
@@ -306,7 +305,7 @@ class LibrarySystem:
             if (reservations[i] - reservations[i - 1]).days == 1:
                 consecutive_day_count += 1
                 if consecutive_day_count >= MAX_CONSECUTIVE_DAYS:
-                    print(f"{MAX_CONSECUTIVE_DAYS}일 연속 좌석을 배정할 수 없습니다.")
+                    print(f"{MAX_CONSECUTIVE_DAYS + 1}일 연속 좌석을 배정할 수 없습니다.")
                     consecutive_usage_limit_exceeded = True
                     break
             elif (reservations[i] - reservations[i - 1]).days > 1:
@@ -439,7 +438,7 @@ class LoginPrompt:
                     break
             
             # ** 재설계에서 모호한 점 : 처음 유저 정보를 생성할 때 마지막 로그인 시간으로 어떤 값을 넣어야할 지 고민이 필요
-            new_user = [user_id, user_name, user_password, recent_input_time]
+            new_user = [user_id, user_name, user_password, '0000-10-29 10:31']
             with open(USER_DATA_FILE, "r") as f:
                 reader = csv.reader(f)
                 for record in reader:
