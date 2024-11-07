@@ -99,7 +99,7 @@ class Admin:
                 return  # 관리자 프롬프트로 돌아감
 
             remove_seat_number = input("삭제할 좌석 번호 입력 > ")
-            if remove_seat_number.isdigit():
+            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, remove_seat_number) != None:
                 remove_seat_number = int(remove_seat_number)
                 now_seats = library_system.get_seats()
 
@@ -117,6 +117,29 @@ class Admin:
             else:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
                 continue
+
+# def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
+#     # 재설계 문서 [수정 필요] : 요구사항 대비 위해서 새로 추가된 함수
+#     seat_count = 0
+#     seat_status_row = ""
+    
+#     for seat in seats:
+#         seat_count += 1
+        
+#         # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
+#         if seat[2] == "D" :
+#             seat_count -= 1
+#             continue
+        
+#         if seat[4] == user_id:
+#             seat_status_row += f"{seat[0]:2}: [★]   "
+#         else:
+#             seat_status_row += f"{seat[0]:2}: [{seat[2]}]   "
+        
+#         if seat_count % row_length == 0:
+#             seat_status_row += "\n"
+        
+#     print(seat_status_row)
 
 class LibrarySystem:
     def __init__(self):
@@ -140,35 +163,41 @@ class LibrarySystem:
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
-    def show_seat_status(self, room_number = 1):
+    def show_seat_status(self, room_number = 1, show_status_mode = "default"):
         print(f"{room_number}번 열람실의 좌석 정보:")
-        # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
-        seat_count = 0
-        seat_row = ""
-        
+       
+        # 재설계 문서 [수정 필요 없음] : 요구사항 대비를 위해서 좌석 상태 출력 함수를 만드려고 했으나 제어 변수로 분기하는 것으로 변경
+        reading_room_seats = []
         for seat in self.seats:
             if seat[1] == room_number:
+                reading_room_seats.append(seat)
+
+        # print_seat_status(reading_room_seats, self.user.student_id)
+
+        if show_status_mode == "default":
+            STATUS_ROW_LENGTH = 10
+            seat_count = 0
+            seat_status = ""
+            
+            for seat in self.seats:
                 seat_count += 1
                 
                 # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
-                if self.user and seat[4] == self.user.student_id:
-                    seat_row += f"{seat[0]:2}: [★]   "
-                elif seat[2] == "D" :
+                if seat[2] == "D" :
                     seat_count -= 1
-                else:
-                    seat_row += f"{seat[0]:2}: [{seat[2]}]   "
+                    continue
                 
-                if seat_count % 10 == 0:
-                    print(seat_row)  
-                    seat_row = ""  
-                    
-        if seat_row:
-            print(seat_row) 
-
+                if seat[4] == self.user.student_id:
+                    seat_status += f"{seat[0]:2}: [★]   "
+                else:
+                    seat_status += f"{seat[0]:2}: [{seat[2]}]   "
+                
+                if seat_count % STATUS_ROW_LENGTH == 0:
+                    seat_status += "\n"
+                
+            print(seat_status)
+ 
     def reserve_seat(self):
-        if self.check_four_day_consecutive_usage():
-            return
-        
         for seat in self.seats:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
@@ -180,6 +209,9 @@ class LibrarySystem:
                 seat_number = int(seat_number)
                 break
            
+        if self.check_four_day_consecutive_usage():
+            return
+
         for seat in self.seats:
             if seat[0] == seat_number and seat[2] == 'O':
                 seat[2] = 'X'
@@ -243,6 +275,7 @@ class LibrarySystem:
             return False
     
     def check_four_day_consecutive_usage(self) -> bool:
+        ## ** 재설계문서 [수정 필요] : 내용 약간 수정 필요
         current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
         MAX_CONSECUTIVE_DAYS = 3  # 확장성 고려. 이변수로 n일연속여부 체크가능.
         consecutive_usage_limit_exceeded = False
@@ -546,7 +579,6 @@ class UserPrompt:
         print("1. 도서관 좌석 조회\n2. 좌석 배정\n3. 좌석 반납\n4. 사용자 로그아웃(종료)")
 
     def handle_user_input(self):
-    
         # 올바른 입력이 처리될 때까지 무한반복
         while True:
             self.display_user_menu()
@@ -587,6 +619,11 @@ class AdminPrompt:
 
     def display_admin_menu(self):
         """관리자 메뉴를 출력하는 함수"""
+
+        # print("debug : ")
+        # library_system.user = User("", "", "")
+        # library_system.show_seat_status()
+
         print("관리자용 프롬프트")
         print("1. 좌석 추가")
         print("2. 좌석 삭제")
