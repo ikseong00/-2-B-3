@@ -228,29 +228,27 @@ class LibrarySystem:
                 return
             
     def cancel_reservation(self):
-        # print("debug : seats = "self.seats)
-
-        found_seat = None
-        for seat in self.seats:
-            if self.user.student_id == seat[4]:
-                found_seat = seat
-                
-        if found_seat:
+        cancel = any(seat[4] == self.user.student_id and seat[2] == 'X' for seat in self.seats)
+        if cancel:
             while True:
-                check_cancel = input("좌석을 반납하시겠습니까?> ")
-                if check_cancel in ["Y", "N"]:
-                    if check_cancel == "Y":
-                        found_seat[2] = 'O'
-                        found_seat[3] = '0000-10-29 10:31'
-                        found_seat[4] = '201000000'
-                        self.save_seat_data()
-                        print("좌석 반납이 완료되었습니다.")
-                        return
-                    else:
-                        print("좌석 반납이 완료되지 않았습니다.") 
-                        return
+                check_cancel = input("좌석을 반납하시겠습니까? > ")
+                if check_cancel == "Y":
+                    for seat in self.seats:
+                        if seat[4] == self.user.student_id and seat[2] == 'X':
+                            seat[2] = 'O' 
+                            seat[3] = '0000-10-29 10:31'
+                            seat[4] = '201000000'
+                            self.save_seat_data()
+                            print("좌석 반납이 완료되었습니다.")
+                            return
+                elif check_cancel == "N":
+                    print("좌석 반납이 완료되지 않았습니다.")
+                    return
+                else:
+                    continue
         else:
             print("이용중인 좌석이 없기 때문에 좌석 반납을 실행할 수 없습니다.")
+            return
         
     def check_expired_reservations(self, now_time): # 통합 중 수정 : 누락된 인자 추가
         current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M")
