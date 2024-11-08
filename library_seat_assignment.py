@@ -58,7 +58,10 @@ class Admin:
         """좌석 추가 함수"""
         print("좌석 추가")
         while True:
+            # 확장을 대비해 입력받은 값을 리스트에 추가하는 방식으로 구현
+            seats_numbers = []  # 확장 대비를 위한 리스트
             add_seat_number = input("추가할 좌석 번호 입력 > ")
+            seats_numbers.append(add_seat_number)  # 입력 받은 좌석 번호를 리스트에 추가
             if re.match(SEAT_NUMBER_SYNTAX_PATTERN, add_seat_number) != None:
                 add_seat_number = int(add_seat_number)
     
@@ -97,8 +100,11 @@ class Admin:
             if len(available_seats) <= 1:
                 print("더 이상 좌석을 삭제할 수 없습니다.")
                 return  # 관리자 프롬프트로 돌아감
-
+            
+            # 확장을 대비해 입력받은 값을 리스트에 추가하는 방식으로 구현
+            seats_numbers = []  # 확장 대비를 위한 리스트
             remove_seat_number = input("삭제할 좌석 번호 입력 > ")
+            seats_numbers.append(remove_seat_number)  # 입력 받은 좌석 번호를 리스트에 추가
             if re.match(SEAT_NUMBER_SYNTAX_PATTERN, remove_seat_number) != None:
                 remove_seat_number = int(remove_seat_number)
                 now_seats = library_system.get_seats()
