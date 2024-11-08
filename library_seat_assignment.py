@@ -66,6 +66,7 @@ class Admin:
                 add_seat_number = int(add_seat_number)
     
                 if not library_system.max_seat_detect(1):
+                    print("최대 한도를 초과했습니다.")
                     return  # 관리자 프롬프트로 돌아감
 
                 now_seats = library_system.get_seats()
@@ -747,7 +748,7 @@ class FileValidator:
             try:
                 with open(SEAT_DATA_FILE, "w") as f:
                     writer = csv.writer(f)
-                    for seat_number in range(1, 51):
+                    for seat_number in range(1, 100):
                         writer.writerow([seat_number, 1, 'O', '0000-10-29 10:31', '201000000'])
             except:
                 print(f"ERROR : 새로운 {SEAT_DATA_FILE} 파일 생성에 실패했습니다!!! 프로그램을 종료합니다")
