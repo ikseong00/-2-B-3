@@ -51,8 +51,8 @@ class User:
         }
  
 class Admin:
-    def __init__(self): # ** 
-        self.id = "defaultadmin"  # 관리자 아이디
+    def __init__(self, id): # ** 
+        self.id = id   # 관리자 아이디
 
     def add_seats(self):
         """좌석 추가 함수"""
@@ -530,8 +530,8 @@ class LoginPrompt:
                 admin_records.append(record)
 
         if login_succeeded:
-            #self.admin_prompt.admin = Admin(admin_id)
-            self.admin_prompt.admin = Admin()
+            self.admin_prompt.admin = Admin(admin_id)
+            # self.admin_prompt.admin = Admin()
             self.admin_prompt.handle_admin_input()
             return True
         
