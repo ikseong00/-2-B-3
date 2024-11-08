@@ -51,14 +51,17 @@ class User:
         }
  
 class Admin:
-    def __init__(self): # ** 
-        self.id = "defaultadmin"  # 관리자 아이디
+    def __init__(self, id): # ** 
+        self.id = id   # 관리자 아이디
 
     def add_seats(self):
         """좌석 추가 함수"""
         print("좌석 추가")
         while True:
+            # 확장을 대비해 입력받은 값을 리스트에 추가하는 방식으로 구현
+            seats_numbers = []  # 확장 대비를 위한 리스트
             add_seat_number = input("추가할 좌석 번호 입력 > ")
+            seats_numbers.append(add_seat_number)  # 입력 받은 좌석 번호를 리스트에 추가
             if re.match(SEAT_NUMBER_SYNTAX_PATTERN, add_seat_number) != None:
                 add_seat_number = int(add_seat_number)
     
@@ -97,8 +100,11 @@ class Admin:
             if len(available_seats) <= 1:
                 print("더 이상 좌석을 삭제할 수 없습니다.")
                 return  # 관리자 프롬프트로 돌아감
-
+            
+            # 확장을 대비해 입력받은 값을 리스트에 추가하는 방식으로 구현
+            seats_numbers = []  # 확장 대비를 위한 리스트
             remove_seat_number = input("삭제할 좌석 번호 입력 > ")
+            seats_numbers.append(remove_seat_number)  # 입력 받은 좌석 번호를 리스트에 추가
             if re.match(SEAT_NUMBER_SYNTAX_PATTERN, remove_seat_number) != None:
                 remove_seat_number = int(remove_seat_number)
                 now_seats = library_system.get_seats()
@@ -308,38 +314,6 @@ class LibrarySystem:
                 break
         
         return consecutive_usage_limit_exceeded
-
-    # def check_four_day_consecutive_usage(self) -> bool:
-    #     current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
-    #     limit = 3  # 확장성 고려 이변수로 n일연속여부 체크가능.
-    #     reservations = []
-
-    #     with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
-    #         reader = csv.reader(f)
-    #         for record in reader:
-    #             if record[0] == self.user.student_id:
-    #                 reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
-    #                 reservations.append(reservation_time)
-
-    #     if len(reservations) < limit:
-    #         return False
-        
-    #     print("debug : reservations = ", reservations)
-
-    #     reservations.sort()
-    #     for i in range(len(reservations) - (limit - 1)):
-    #         consecutive = True
-    #         for j in range(limit - 1):
-    #             if (reservations[i + j + 1] - reservations[i + j]).days != 1:
-    #                 consecutive = False
-    #                 break
-    #         if consecutive:
-    #             if (current_time - reservations[i + limit - 1]).days <= 1:
-    #                 print(f"{limit}일 연속 좌석을 배정할 수 없습니다.")
-    #                 return True
-    #             else:
-    #                 return False
-    #     return False
 
 class LoginPrompt:
     '''
@@ -555,8 +529,8 @@ class LoginPrompt:
                 admin_records.append(record)
 
         if login_succeeded:
-            #self.admin_prompt.admin = Admin(admin_id)
-            self.admin_prompt.admin = Admin()
+            self.admin_prompt.admin = Admin(admin_id)
+            # self.admin_prompt.admin = Admin()
             self.admin_prompt.handle_admin_input()
             return True
         
