@@ -710,7 +710,6 @@ class FileValidator:
                     if check_record_syntax(record) == False: # 문법 규칙에 맞지 않으면
                         print(f"ERROR : {USER_DATA_FILE} 파일에 규칙에 맞지 않는 레코드가 존재합니다!!! 프로그램을 종료합니다")
                         sys.exit() 
-
     
     def validate_input_time_file(self, check_record_syntax):
         '''
@@ -747,7 +746,7 @@ class FileValidator:
             try:
                 with open(SEAT_DATA_FILE, "w") as f:
                     writer = csv.writer(f)
-                    for seat_number in range(1, 100):
+                    for seat_number in range(1, 51): # 중간 발표용 제출 후 수정
                         writer.writerow([seat_number, 1, 'O', '0000-10-29 10:31', '201000000'])
             except:
                 print(f"ERROR : 새로운 {SEAT_DATA_FILE} 파일 생성에 실패했습니다!!! 프로그램을 종료합니다")
