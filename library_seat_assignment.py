@@ -203,6 +203,8 @@ class LibrarySystem:
     def reserve_seat(self):
         if self.check_four_day_consecutive_usage():
             return
+        if self.check_three_times_usage_per_day(): #### 요구사항 2E 구현 완료
+            return
         for seat in self.seats:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
@@ -315,6 +317,26 @@ class LibrarySystem:
                 break
         
         return consecutive_usage_limit_exceeded
+    
+    def check_three_times_usage_per_day(self) -> bool:
+        '''
+        요구사항 2E 
+        '''
+        current_date = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
+        MAX_USES_PER_DAY = 3  # 하루 사용 제한 횟수 추후 상수로 전환하는 것이 필요!!
+        usage_count = 0
+        with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
+            reader = csv.reader(f)
+            for record in reader:
+                if len(record) != 0:
+                    if record[0] == self.user.student_id:  # 현재 사용자 학번과 동일한 기록만 체크
+                        reservation_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
+                        if reservation_date == current_date:  # 같은 날짜의 기록만 카운트
+                            usage_count += 1
+        if usage_count >= MAX_USES_PER_DAY:
+            print(f"하루에 최대 {MAX_USES_PER_DAY}번만 좌석을 배정할 수 있습니다.")
+            return True  
+        return False
 
 class LoginPrompt:
     '''
