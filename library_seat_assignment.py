@@ -24,6 +24,9 @@ SEAT_DATA_FILE = "library_seat_data.csv"
 INPUT_TIME_FILE = "library_input_time_data.csv"
 SEAT_ASSIGNMENT_LOG_FILE = "library_seat_assignment_log.csv"
 READING_ROOM_DATA_FILE = "library_reading_room_data.csv"
+ 
+### 2차 재설계 과정에서 추가된 전역 변수 ###
+MAX_USES_PER_DAY = 3  # [3차 요구사항 대비] 새 요구사항에 대비하기 위해서 check_three_times_usage_per_day(self)에서 사용하는 변수를 전역 변수로 변경.
 
 reading_room_list = []
 recent_input_time = ""
@@ -323,7 +326,7 @@ class LibrarySystem:
         요구사항 2E 
         '''
         current_date = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
-        MAX_USES_PER_DAY = 3  # 하루 사용 제한 횟수 추후 상수로 전환하는 것이 필요!!
+        # MAX_USES_PER_DAY = 3  # 새로운 요구사항에 대비하기 위해서 전역변수로 전환
         usage_count = 0
         with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
             reader = csv.reader(f)
