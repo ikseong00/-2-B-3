@@ -130,28 +130,6 @@ class Admin:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
                 continue
 
-# def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
-#     seat_count = 0
-#     seat_status_row = ""
-    
-#     for seat in seats:
-#         seat_count += 1
-        
-#         # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
-#         if seat[2] == "D" :
-#             seat_count -= 1
-#             continue
-        
-#         if seat[4] == user_id:
-#             seat_status_row += f"{seat[0]:2}: [★]   "
-#         else:
-#             seat_status_row += f"{seat[0]:2}: [{seat[2]}]   "
-        
-#         if seat_count % row_length == 0:
-#             seat_status_row += "\n"
-        
-#     print(seat_status_row)
-
 class LibrarySystem:
     def __init__(self):
         self.seats = []
