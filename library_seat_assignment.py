@@ -26,7 +26,9 @@ SEAT_ASSIGNMENT_LOG_FILE = "library_seat_assignment_log.csv"
 READING_ROOM_DATA_FILE = "library_reading_room_data.csv"
  
 ### 2차 재설계 과정에서 추가된 전역 변수 ###
-MAX_USES_PER_DAY = 3  # [3차 요구사항 대비] 새 요구사항에 대비하기 위해서 check_three_times_usage_per_day(self)에서 사용하는 변수를 전역 변수로 변경.
+max_uses_per_day = 3           # [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
+max_recent_usage_day = 5       # [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
+recent_days_for_validation = 7 # [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
 
 reading_room_list = []
 recent_input_time = ""
@@ -208,6 +210,9 @@ class LibrarySystem:
             return
         if self.check_three_times_usage_per_day(): #### 요구사항 2E 구현 완료
             return
+        if self.validate_recent_seat_usage(): ### 요구사항 2D 구현 완료
+            return
+        
         for seat in self.seats:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
@@ -230,12 +235,12 @@ class LibrarySystem:
                         # 예약 기록 저장
                         with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
                             writer = csv.writer(f)
-                            writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
+                            writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time]) ## 배정 플래그
                         return
                     else:
                         break
-            
-           
+
+
             
     def cancel_reservation(self):
         cancel = any(seat[4] == self.user.student_id and seat[2] == 'X' for seat in self.seats)
@@ -293,7 +298,7 @@ class LibrarySystem:
             reader = csv.reader(f)
             for record in reader:
                 if len(record) != 0:
-                    if record[0] == self.user.student_id:
+                    if record[0] == self.user.student_id: # 배정 플래그 확인
                         reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
                         reservations.append(reservation_time)
         reservations.append(current_time)
@@ -323,7 +328,7 @@ class LibrarySystem:
     
     def check_three_times_usage_per_day(self) -> bool:
         '''
-        요구사항 2E 
+        요구사항 2E
         '''
         current_date = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
         # MAX_USES_PER_DAY = 3  # 새로운 요구사항에 대비하기 위해서 전역변수로 전환
@@ -332,13 +337,40 @@ class LibrarySystem:
             reader = csv.reader(f)
             for record in reader:
                 if len(record) != 0:
-                    if record[0] == self.user.student_id:  # 현재 사용자 학번과 동일한 기록만 체크
+                    if record[0] == self.user.student_id:  # 현재 사용자 학번과 동일한 기록만 체크 # 배정 플래그 확인
                         reservation_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
                         if reservation_date == current_date:  # 같은 날짜의 기록만 카운트
                             usage_count += 1
-        if usage_count >= MAX_USES_PER_DAY:
-            print(f"하루에 최대 {MAX_USES_PER_DAY}번만 좌석을 배정할 수 있습니다.")
+        if usage_count >= max_uses_per_day:
+            print(f"하루에 최대 {max_uses_per_day}번만 좌석을 배정할 수 있습니다.")
             return True  
+        return False
+
+    def validate_recent_seat_usage(self):
+        '''
+        요구사항 D
+        '''
+        recent_reservations = []
+        # max_recent_usage_day = 5       # 전역 변수로 변경
+        # recent_days_for_validation = 7 # 전역 변수로 변경 
+
+        today = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
+        # print("debug : today =", today)
+        with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
+            reader = csv.reader(f)
+            for record in reader:
+                if record != []:
+                    if record[0] == self.user.student_id: # 배정 플래그 확인
+                        reservation_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
+                        if reservation_date > today - datetime.timedelta(days = recent_days_for_validation):
+                            # print("debug : reservation_date =", reservation_date)
+                            recent_reservations.append(reservation_date)
+
+        # print("debug : recent_reservations = ", recent_reservations)
+        recent_usage_day = len(set(recent_reservations))
+        if recent_usage_day >= max_recent_usage_day:
+            print("연속된 7일 기간 내에 5일을 초과하여 좌석을 배정할 수 없습니다.")
+            return True
         return False
 
 class LoginPrompt:
@@ -856,7 +888,7 @@ class FileValidator:
         self.validate_user_data_file(check_user_data_syntax)
         self.validate_input_time_file(check_input_time_syntax)
         self.validate_seat_data_file(check_seat_data_syntax)
-        self.validate_seat_assignment_log_file(check_seat_assignment_log_syntax)
+        self.validate_seat_assignment_log_file(check_seat_assignment_log_syntax) # 배정 플래그 검증
         self.validate_reading_room_data_file(check_reading_room_data_syntax)
 
 '''
