@@ -54,76 +54,154 @@ class Admin:
     def __init__(self, id): # ** 
         self.id = id   # 관리자 아이디
 
+    def change_reading_room_limit(self):
+        print("열람실 최대 좌석 수 변경")
+
+        # 현재 열람실 정보 출력
+        print("현재 열람실 정보:")
+        for room in reading_room_list:
+            room_number = room[0]
+            max_seats = room[1]
+            current_seats = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
+            print(f"[{room_number}, {max_seats}, {current_seats}]")
+
+        while True:
+            try:
+                # 변경할 열람실 번호와 새로운 최대 좌석 수 입력
+                input_data = input("변경할 열람실 번호와 새로운 최대 좌석 수를 입력 ex) 1 100 > ").strip()
+                room_number, max_seats = map(int, input_data.split())
+
+                room_to_change = next((room for room in reading_room_list if room[0] == room_number), None)
+                if not room_to_change:
+                    print("존재하는 열람실 번호를 입력하세요.")
+                    continue
+
+                current_seats = sum(
+                    1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
+                if max_seats < current_seats:
+                    print("현재 존재하는 좌석 수보다 큰 값을 입력하세요.")
+                    continue
+
+                # 최대 좌석 수 변경
+                room_to_change[1] = max_seats
+                self.save_reading_room_data()
+                break
+            except ValueError:
+                print("올바른 인자를 입력하세요. ex) 1 100")
+                continue
+
     def add_seats(self):
         """좌석 추가 함수"""
         print("좌석 추가")
         while True:
-            # 확장을 대비해 입력받은 값을 리스트에 추가하는 방식으로 구현
-            seats_numbers = []  # 확장 대비를 위한 리스트
-            add_seat_number = input("추가할 좌석 번호 입력 > ")
-            seats_numbers.append(add_seat_number)  # 입력 받은 좌석 번호를 리스트에 추가
-            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, add_seat_number) != None:
-                add_seat_number = int(add_seat_number)
-    
-                if not library_system.max_seat_detect(1):
-                    print("최대 한도를 초과했습니다.")
-                    return  # 관리자 프롬프트로 돌아감
+            # 열람실 정보 출력
+            print("도서관 열람실 현황:")
+            for room in reading_room_list:
+                print(f"[{room[0]}, {room[1]}]")
 
-                now_seats = library_system.get_seats()
-
-                # 이미 존재하는 좌석 번호 중 상태가 'D'인 좌석을 찾아서 상태를 변경
-                seat_to_restore = next((seat for seat in now_seats if seat[0] == add_seat_number and seat[2] == "D"), None)
-                if seat_to_restore:
-                    seat_to_restore[2] = "O"  # 상태를 'O'로 변경
-                    seat_to_restore[3] = '0000-10-29 10:31'
-                    seat_to_restore[4] = '201000000'
-                    library_system.save_seat_data()
-                    break
-                elif any(seat[0] == add_seat_number and seat[2] != "D" for seat in now_seats):
-                    continue  # 다시 입력 받음
-
-                else:
-                    now_seats.append([add_seat_number, 1, "O", '0000-10-29 10:31', '201000000'])
-
-                    library_system.seats = now_seats
-                    library_system.save_seat_data()  # 좌석 데이터 저장
-                    break
-            else:
-                # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
+            room_number = input("좌석 추가를 진행할 열람실 번호 입력 > ")
+            if not re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, room_number):
+                print("유효한 열람실 번호를 입력하세요.")
                 continue
+
+            room_number = int(room_number)
+            room_to_add = next((room for room in reading_room_list if room[0] == room_number), None)
+            if not room_to_add:
+                print("존재하는 열람실 번호를 입력하세요.")
+                continue
+
+            library_system.show_seat_status(room_number)
+
+            seat_numbers = input("추가할 좌석 번호 입력 > ").split()
+            now_seats = library_system.get_seats()
+            added_any = False
+
+            for seat_number in seat_numbers:
+                if not re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number):
+                    print(f"{seat_number}는 올바르지 않은 번호입니다.")
+                    continue
+
+                seat_number = int(seat_number)
+                if not library_system.max_seat_detect(1, room_number):
+                    print(f"{room_number}번 열람실의 최대 좌석 한도를 초과했습니다.")
+                    break
+
+                seat_to_restore = next(
+                    (seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number), None)
+                if seat_to_restore:
+                    if seat_to_restore[2] == "D":
+                        seat_to_restore[2] = "O"
+                        print(f"{seat_number}번 좌석이 추가되었습니다.")
+                    else:
+                        print(f"이미 존재하는 좌석이기 때문에 {seat_number}번 좌석을 추가할 수 없습니다.")
+                    continue
+                else:
+                    now_seats.append([seat_number, room_number, "O", '0000-10-29 10:31', '201000000'])
+                    print(f"{seat_number}번 좌석이 추가되었습니다.")
+                    added_any = True
+
+            if added_any:
+                library_system.save_seat_data()
+
+            # 작업 완료 후 관리자 프롬프트로 복귀
+            break
 
     def remove_seats(self):
         """좌석 삭제 함수"""
         print("좌석 삭제")
         while True:
-            # 사용 가능한 좌석이 1개 이하인지 확인
-            available_seats = [seat for seat in library_system.get_seats() if seat[2] == "O"]
-            if len(available_seats) <= 1:
-                print("더 이상 좌석을 삭제할 수 없습니다.")
-                return  # 관리자 프롬프트로 돌아감
-            
-            # 확장을 대비해 입력받은 값을 리스트에 추가하는 방식으로 구현
-            seats_numbers = []  # 확장 대비를 위한 리스트
-            remove_seat_number = input("삭제할 좌석 번호 입력 > ")
-            seats_numbers.append(remove_seat_number)  # 입력 받은 좌석 번호를 리스트에 추가
-            if re.match(SEAT_NUMBER_SYNTAX_PATTERN, remove_seat_number) != None:
-                remove_seat_number = int(remove_seat_number)
-                now_seats = library_system.get_seats()
+            print("도서관 열람실 현황:")
+            for room in reading_room_list:
+                print(f"[{room[0]}, {room[1]}]")
 
-                # 좌석 번호가 존재하는지 확인
-                seat = next((s for s in now_seats if s[0] == remove_seat_number), None)
-                if seat:
-                    if seat[2] == "O":
-                        seat[2] = "D"  # 상태를 빈 공간으로 변경하여 결번 처리
-                        library_system.seats = now_seats
-                        library_system.save_seat_data()  # 좌석 데이터 저장
-                        print(f"{remove_seat_number}번 좌석 삭제가 완료되었습니다.")
-                        break
-                else:
-                    continue
-            else:
-                # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
+            room_number = input("좌석 삭제를 진행할 열람실 번호 입력 > ")
+            if not re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, room_number):
+                print("유효한 열람실 번호를 입력하세요.")
                 continue
+
+            room_number = int(room_number)
+            room_to_remove = next((room for room in reading_room_list if room[0] == room_number), None)
+            if not room_to_remove:
+                print("존재하는 열람실 번호를 입력하세요.")
+                continue
+
+            library_system.show_seat_status(room_number)
+
+            seat_numbers = input("삭제할 좌석 번호 입력 > ").split()
+            now_seats = library_system.get_seats()
+            removed_any = False
+
+            for seat_number in seat_numbers:
+                if not re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number):
+                    print(f"{seat_number}는 올바르지 않은 번호입니다.")
+                    continue
+
+                seat_number = int(seat_number)
+                seat_to_remove = next((seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number),
+                                      None)
+
+                if seat_to_remove:
+                    if seat_to_remove[2] == "O":
+                        available_seats = [seat for seat in now_seats if seat[1] == room_number and seat[2] == "O"]
+                        if len(available_seats) <= 1:
+                            print(f"{room_number}번 열람실에 더 이상 좌석을 삭제할 수 없습니다.")
+                            break
+
+                        seat_to_remove[2] = "D"
+                        print(f"{seat_number}번 좌석이 삭제되었습니다.")
+                        removed_any = True
+                    elif seat_to_remove[2] == "X":
+                        print(f"{seat_number}번 좌석은 현재 사용 중이어서 삭제할 수 없습니다.")
+                    else:
+                        print(f"{seat_number}번 좌석은 존재하지 않습니다.")
+                else:
+                    print(f"{seat_number}번 좌석은 존재하지 않습니다.")
+
+            if removed_any:
+                library_system.save_seat_data()
+
+            # 작업 완료 후 관리자 프롬프트로 복귀
+            break
 
 # def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
 #     seat_count = 0
@@ -597,7 +675,11 @@ class AdminPrompt:
         print("관리자용 프롬프트")
         print("1. 좌석 추가")
         print("2. 좌석 삭제")
-        print("3. 관리자 로그아웃(종료)")
+        print("3. 열람실 추가")
+        print("4. 열람실 삭제")
+        print("5. 열람실 최대 좌석 수 변경")
+        print("6. 관리자 로그아웃(종료)")
+
 
     def handle_admin_input(self):
         """관리자 입력을 처리하는 함수"""
@@ -605,14 +687,20 @@ class AdminPrompt:
             self.display_admin_menu()
             admin_input = input("선택하세요 > ")
 
-            # 입력이 1, 2, 3으로만 구성되어 있는지 확인 (공백 및 기타 문자 허용 안함)
-            if admin_input in ["1", "2", "3"]:
+            # 입력이 1, 2, 3, 4, 5, 6으로만 구성되어 있는지 확인 (공백 및 기타 문자 허용 안함)
+            if admin_input in ["1", "2", "3", "4", "5", "6"]:
                 choice = int(admin_input)
                 if choice == 1:
                     self.admin.add_seats()  # 좌석 추가 기능
                 elif choice == 2:
                     self.admin.remove_seats()  # 좌석 삭제 기능
                 elif choice == 3:
+                    self.admin.add_reading_room()  # 열람실 추가 기능
+                elif choice == 4:
+                    self.admin.remove_reading_room()  # 열람실 삭제 기능
+                elif choice == 5:
+                    self.admin.change_reading_room_limit()  # 최대 좌석 수 변경
+                elif choice == 6:
                     logout_selected = self.logout_admin()  # 로그아웃 처리
                     if logout_selected:
                         break  # while 루프 종료
