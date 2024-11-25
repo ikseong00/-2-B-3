@@ -24,6 +24,9 @@ SEAT_DATA_FILE = "library_seat_data.csv"
 INPUT_TIME_FILE = "library_input_time_data.csv"
 SEAT_ASSIGNMENT_LOG_FILE = "library_seat_assignment_log.csv"
 READING_ROOM_DATA_FILE = "library_reading_room_data.csv"
+ 
+### 2차 재설계 과정에서 추가된 전역 변수 ###
+MAX_USES_PER_DAY = 3  # [3차 요구사항 대비] 새 요구사항에 대비하기 위해서 check_three_times_usage_per_day(self)에서 사용하는 변수를 전역 변수로 변경.
 
 reading_room_list = []
 recent_input_time = ""
@@ -203,6 +206,8 @@ class LibrarySystem:
     def reserve_seat(self):
         if self.check_four_day_consecutive_usage():
             return
+        if self.check_three_times_usage_per_day(): #### 요구사항 2E 구현 완료
+            return
         for seat in self.seats:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
@@ -315,6 +320,26 @@ class LibrarySystem:
                 break
         
         return consecutive_usage_limit_exceeded
+    
+    def check_three_times_usage_per_day(self) -> bool:
+        '''
+        요구사항 2E 
+        '''
+        current_date = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
+        # MAX_USES_PER_DAY = 3  # 새로운 요구사항에 대비하기 위해서 전역변수로 전환
+        usage_count = 0
+        with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
+            reader = csv.reader(f)
+            for record in reader:
+                if len(record) != 0:
+                    if record[0] == self.user.student_id:  # 현재 사용자 학번과 동일한 기록만 체크
+                        reservation_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
+                        if reservation_date == current_date:  # 같은 날짜의 기록만 카운트
+                            usage_count += 1
+        if usage_count >= MAX_USES_PER_DAY:
+            print(f"하루에 최대 {MAX_USES_PER_DAY}번만 좌석을 배정할 수 있습니다.")
+            return True  
+        return False
 
 class LoginPrompt:
     '''
