@@ -17,6 +17,7 @@ TIME_SYNTAX_PATTERN = r"[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0
 SEAT_STATUS_SYNTAX_PATTERN="^[OXD]$"
 READING_ROOM_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN = r'^[1-9]\d*$'
+ASSIGNMENT_LOG_RECORD_TYPE_SYNTAX_PATTERN = r'^(reserve|return)$'
 
 ADMIN_DATA_FILE = "libary_admin_data.csv" 
 USER_DATA_FILE = "libary_user_data.csv"
@@ -124,6 +125,40 @@ class Admin:
             else:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
                 continue
+    def add_room(self):
+        print("열람실 추가")
+        while True:
+            print("열람실 리스트 : ", reading_room_list)
+            # input_room_num = int(input("추가할 열람실 번호 입력(열람실 번호, 최대 좌석 수, 자동생성할 좌석 개수) > "))
+            # if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, input_room_num) == None:
+            #     continue # 열람실 번호가 문법 형식에 맞지 않으면 '추가할 열람실 번호 입력 > '으로 돌아감 
+            # else:
+            new_room_info = input("추가할 열람실 정보 입력(열람실 번호, 최대 좌석 수, 자동 생성할 좌석 개수) > ")
+            room_info_parts = new_room_info.split()
+            if len((room_info_parts)) != 3:
+                print("세 개의 값을 입력해야 합니다.")
+                continue # 입력한 정보가 올바르지 않은 경우 
+
+            room_number, max_seats, auto_generate_seats = map(int, new_room_info.split()) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
+            default_assignment_time = '0000-10-29 10:31'
+            default_id = '201000000'
+            if room_number in [room[0] for room in reading_room_list]:
+                print("이미 존재하는 열람실입니다.")
+                continue 
+            if max_seats < auto_generate_seats:
+                print("최대 좌석 수보다 자동 생성할 좌석 개수가 많습니다.")
+                continue
+
+            with open(READING_ROOM_DATA_FILE, "a", newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([room_number, max_seats])
+            with open(SEAT_DATA_FILE, "a", newline='') as f:
+                print("좌석 추가")
+                writer = csv.writer(f)
+                for generate_seats_num in range(1, auto_generate_seats+1):
+                    writer.writerow([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
+            break 
+
 
 # def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
 #     seat_count = 0
@@ -150,31 +185,40 @@ class Admin:
 class LibrarySystem:
     def __init__(self):
         self.seats = []
+        self.librarys = [] # 여러개의 열람실 정보를 저장할 배열 
         self.user = None
         self.load_seat_data()
 
     def get_seats(self):
         return self.seats
+    
 
-    def load_seat_data(self):
+    def load_seat_data(self): 
         if os.path.exists(SEAT_DATA_FILE):
             with open(SEAT_DATA_FILE, "r") as f:
                 reader = csv.reader(f)
                 for record in reader:
-                    if len(record) != 0:
+                    if len(record) == 5:
                         self.seats.append([int(record[0]), int(record[1]), record[2], record[3], record[4]])
-
+                    
     def save_seat_data(self):
         with open(SEAT_DATA_FILE, "w", newline='') as f:
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
-    def show_seat_status(self, room_number = 1, show_status_mode = "default"):
-        print(f"{room_number}번 열람실의 좌석 정보:")
+    def show_seat_status(self, show_status_mode = "default"): # room_number 삭제
+
+        print("도서관 열람실 현황(열람실 번호, 최대 좌석 수, 현재 배정된 좌석 수) :")
+        for room in reading_room_list:
+            room_number = room[0]
+            max_seats = room[1]
+            current_seats = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
+            print(f"[{room_number}, {max_seats}, {current_seats}]")
+        input_room_number = int(input("좌석 조회할 열람실을 선택하세요 > "))
        
         seats = []
         for seat in self.seats:
-            if seat[1] == room_number:
+            if seat[1] == input_room_number:
                 seats.append(seat)
                 
         if show_status_mode == "default":
@@ -597,7 +641,10 @@ class AdminPrompt:
         print("관리자용 프롬프트")
         print("1. 좌석 추가")
         print("2. 좌석 삭제")
-        print("3. 관리자 로그아웃(종료)")
+        print("3. 열람실 추가") # 2A구현을 위한 프롬프트 변경
+        print("4. 열람실 삭제") # 2A 
+        print("5. 열람실 최대 좌석 수 변경")
+        print("6. 관리자 로그아웃(종료)")
 
     def handle_admin_input(self):
         """관리자 입력을 처리하는 함수"""
@@ -606,13 +653,19 @@ class AdminPrompt:
             admin_input = input("선택하세요 > ")
 
             # 입력이 1, 2, 3으로만 구성되어 있는지 확인 (공백 및 기타 문자 허용 안함)
-            if admin_input in ["1", "2", "3"]:
+            if admin_input in ["1", "2", "3", "4", "5", "6"]:
                 choice = int(admin_input)
                 if choice == 1:
                     self.admin.add_seats()  # 좌석 추가 기능
                 elif choice == 2:
                     self.admin.remove_seats()  # 좌석 삭제 기능
                 elif choice == 3:
+                    self.admin.add_room() # 열람실 추가 기능
+                elif choice == 4:
+                    self.admin.remove_room() # 열람실 삭제 기능 
+                elif choice == 5:
+                    print("열람실 최대 좌석 수 변경 함수 실행")
+                elif choice == 6:
                     logout_selected = self.logout_admin()  # 로그아웃 처리
                     if logout_selected:
                         break  # while 루프 종료
@@ -815,15 +868,16 @@ class FileValidator:
 
                 record_count += 1
         
-        if record_count != 1:
-            print(f"ERROR : {READING_ROOM_DATA_FILE}파일에 두 개 이상의 레코드가 존재합니다!!! 프로그램을 종료합니다.")
-            sys.exit()
+        # if record_count != 1:
+        #     print(f"ERROR : {READING_ROOM_DATA_FILE}파일에 두 개 이상의 레코드가 존재합니다!!! 프로그램을 종료합니다.")
+        #     sys.exit()
+        # 열람실이 여러개 이므로 예외 처리 삭제 
 
     def validate_all_files(self):
         check_user_data_syntax = lambda record : True if (re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(USER_NAME_SYNTAX_PATTERN, record[1].strip()) and re.match(PASSWORD_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip())) else False # 사용자 마지막 로그인 시간이 필요한가?
         check_input_time_syntax = lambda record : True if re.match(TIME_SYNTAX_PATTERN, record[0].strip()) else False
-        check_seat_data_syntax = lambda record : True if (re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[0].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(SEAT_STATUS_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip()) and re.match(USER_ID_SYNTAX_PATTERN, record[4].strip())) else False
-        check_seat_assignment_log_syntax = lambda record : True if (re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip())) else False
+        check_seat_data_syntax = lambda record : True if re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[0].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(SEAT_STATUS_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip()) and re.match(USER_ID_SYNTAX_PATTERN, record[4].strip()) else False
+        check_seat_assignment_log_syntax = lambda record : True if (len(record) == 5 and re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip()) and re.match(ASSIGNMENT_LOG_RECORD_TYPE_SYNTAX_PATTERN, record[4].strip())) else False
         check_reading_room_data_syntax = lambda record : True if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[0].strip()) and re.match(READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN, record[1].strip()) else False
         
         self.validate_admin_data_file(check_admin_data_syntax, check_admin_data_meaning)
