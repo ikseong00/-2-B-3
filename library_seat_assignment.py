@@ -17,6 +17,7 @@ TIME_SYNTAX_PATTERN = r"[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0
 SEAT_STATUS_SYNTAX_PATTERN="^[OXD]$"
 READING_ROOM_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN = r'^[1-9]\d*$'
+ASSIGNMENT_LOG_RECORD_TYPE_SYNTAX_PATTERN = r'^(reserve|return)$'
 
 ADMIN_DATA_FILE = "libary_admin_data.csv" 
 USER_DATA_FILE = "libary_user_data.csv"
@@ -26,7 +27,12 @@ SEAT_ASSIGNMENT_LOG_FILE = "library_seat_assignment_log.csv"
 READING_ROOM_DATA_FILE = "library_reading_room_data.csv"
  
 ### 2차 재설계 과정에서 추가된 전역 변수 ###
-MAX_USES_PER_DAY = 3  # [3차 요구사항 대비] 새 요구사항에 대비하기 위해서 check_three_times_usage_per_day(self)에서 사용하는 변수를 전역 변수로 변경.
+RESERVE = "reserve"
+RETURN = "return"
+
+max_uses_per_day = 3           ### 요구사항 E [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
+max_recent_usage_day = 5       ### 요구사항 D [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
+recent_days = 7 ### 요구사항 D [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
 
 reading_room_list = []
 recent_input_time = ""
@@ -128,28 +134,6 @@ class Admin:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
                 continue
 
-# def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
-#     seat_count = 0
-#     seat_status_row = ""
-    
-#     for seat in seats:
-#         seat_count += 1
-        
-#         # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
-#         if seat[2] == "D" :
-#             seat_count -= 1
-#             continue
-        
-#         if seat[4] == user_id:
-#             seat_status_row += f"{seat[0]:2}: [★]   "
-#         else:
-#             seat_status_row += f"{seat[0]:2}: [{seat[2]}]   "
-        
-#         if seat_count % row_length == 0:
-#             seat_status_row += "\n"
-        
-#     print(seat_status_row)
-
 class LibrarySystem:
     def __init__(self):
         self.seats = []
@@ -208,6 +192,9 @@ class LibrarySystem:
             return
         if self.check_three_times_usage_per_day(): #### 요구사항 2E 구현 완료
             return
+        if self.validate_recent_seat_usage(): ### 요구사항 2D 구현 완료
+            return
+        
         for seat in self.seats:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
@@ -230,13 +217,13 @@ class LibrarySystem:
                         # 예약 기록 저장
                         with open(SEAT_ASSIGNMENT_LOG_FILE, "a", newline='') as f:
                             writer = csv.writer(f)
-                            writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time])
+                            writer.writerow([self.user.student_id, seat_number, seat[1], recent_input_time, RESERVE]) ## 배정 플래그
                         return
                     else:
                         break
-            
-           
-            
+
+
+
     def cancel_reservation(self):
         cancel = any(seat[4] == self.user.student_id and seat[2] == 'X' for seat in self.seats)
         if cancel:
@@ -249,6 +236,9 @@ class LibrarySystem:
                             seat[3] = '0000-10-29 10:31'
                             seat[4] = '201000000'
                             self.save_seat_data()
+                            with open(SEAT_ASSIGNMENT_LOG_FILE, "a") as f:
+                                writer = csv.writer(f)
+                                writer.writerow([self.user.student_id, seat[0], seat[1], recent_input_time, RETURN])
                             print("좌석 반납이 완료되었습니다.")
                             return
                 elif check_cancel == "N":
@@ -267,6 +257,10 @@ class LibrarySystem:
             if seat[2] == 'X' and seat[3] != '':
                 reserve_time = datetime.datetime.strptime(seat[3], "%Y-%m-%d %H:%M")
                 if (current_time - reserve_time).total_seconds() > MAX_USAGE_TIME: 
+                    with open(SEAT_ASSIGNMENT_LOG_FILE, "a") as f:
+                        writer = csv.writer(f)
+                        returned_time = reserve_time + datetime.timedelta(hours=3)
+                        writer.writerow([seat[4], seat[0], seat[1], returned_time.strftime("%Y-%m-%d %H:%M"), RETURN])
                     seat[2] = 'O'
                     seat[3] = '0000-10-29 10:31'
                     seat[4] = '201000000'
@@ -293,7 +287,7 @@ class LibrarySystem:
             reader = csv.reader(f)
             for record in reader:
                 if len(record) != 0:
-                    if record[0] == self.user.student_id:
+                    if record[0] == self.user.student_id and record[4] == RESERVE: # 배정 플래그 확인
                         reservation_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").replace(hour=1, minute=1)
                         reservations.append(reservation_time)
         reservations.append(current_time)
@@ -323,7 +317,7 @@ class LibrarySystem:
     
     def check_three_times_usage_per_day(self) -> bool:
         '''
-        요구사항 2E 
+        요구사항 2E
         '''
         current_date = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
         # MAX_USES_PER_DAY = 3  # 새로운 요구사항에 대비하기 위해서 전역변수로 전환
@@ -332,13 +326,40 @@ class LibrarySystem:
             reader = csv.reader(f)
             for record in reader:
                 if len(record) != 0:
-                    if record[0] == self.user.student_id:  # 현재 사용자 학번과 동일한 기록만 체크
+                    if record[0] == self.user.student_id and record[4] == RESERVE:  # 현재 사용자 학번과 동일한 기록만 체크 # 배정 플래그 확인
                         reservation_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
                         if reservation_date == current_date:  # 같은 날짜의 기록만 카운트
                             usage_count += 1
-        if usage_count >= MAX_USES_PER_DAY:
-            print(f"하루에 최대 {MAX_USES_PER_DAY}번만 좌석을 배정할 수 있습니다.")
+        if usage_count >= max_uses_per_day:
+            print(f"하루에 최대 {max_uses_per_day}번만 좌석을 배정할 수 있습니다.")
             return True  
+        return False
+
+    def validate_recent_seat_usage(self):
+        '''
+        요구사항 D
+        '''
+        recent_reservations = []
+        # max_recent_usage_day = 5       # 전역 변수로 변경
+        # recent_days_for_validation = 7 # 전역 변수로 변경 
+
+        today = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M").date()
+        # print("debug : today =", today)
+        with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
+            reader = csv.reader(f)
+            for record in reader:
+                if record != []:
+                    if record[0] == self.user.student_id and record[4] == RESERVE: # 배정 플래그 확인
+                        reservation_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
+                        if reservation_date > today - datetime.timedelta(days = recent_days):
+                            # print("debug : reservation_date =", reservation_date)
+                            recent_reservations.append(reservation_date)
+
+        # print("debug : recent_reservations = ", recent_reservations)
+        recent_usage_day = len(set(recent_reservations))
+        if recent_usage_day >= max_recent_usage_day:
+            print("연속된 7일 기간 내에 5일을 초과하여 좌석을 배정할 수 없습니다.")
+            return True
         return False
 
 class LoginPrompt:
@@ -598,7 +619,6 @@ class UserPrompt:
 
 
     def logout_user(self):
-
         while True:
             confirm = input("로그아웃 하시겠습니까?(Y/N) > ")
             if confirm in ["Y", "N"]:
@@ -847,15 +867,15 @@ class FileValidator:
     def validate_all_files(self):
         check_user_data_syntax = lambda record : True if (re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(USER_NAME_SYNTAX_PATTERN, record[1].strip()) and re.match(PASSWORD_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip())) else False # 사용자 마지막 로그인 시간이 필요한가?
         check_input_time_syntax = lambda record : True if re.match(TIME_SYNTAX_PATTERN, record[0].strip()) else False
-        check_seat_data_syntax = lambda record : True if (re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[0].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(SEAT_STATUS_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip()) and re.match(USER_ID_SYNTAX_PATTERN, record[4].strip())) else False
-        check_seat_assignment_log_syntax = lambda record : True if (re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip())) else False
+        check_seat_data_syntax = lambda record : True if re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[0].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(SEAT_STATUS_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip()) and re.match(USER_ID_SYNTAX_PATTERN, record[4].strip()) else False
+        check_seat_assignment_log_syntax = lambda record : True if (len(record) == 5 and re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(SEAT_NUMBER_SYNTAX_PATTERN, record[1].strip()) and re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip()) and re.match(ASSIGNMENT_LOG_RECORD_TYPE_SYNTAX_PATTERN, record[4].strip())) else False
         check_reading_room_data_syntax = lambda record : True if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, record[0].strip()) and re.match(READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN, record[1].strip()) else False
         
         self.validate_admin_data_file(check_admin_data_syntax, check_admin_data_meaning)
         self.validate_user_data_file(check_user_data_syntax)
         self.validate_input_time_file(check_input_time_syntax)
         self.validate_seat_data_file(check_seat_data_syntax)
-        self.validate_seat_assignment_log_file(check_seat_assignment_log_syntax)
+        self.validate_seat_assignment_log_file(check_seat_assignment_log_syntax) # 배정 플래그 검증
         self.validate_reading_room_data_file(check_reading_room_data_syntax)
 
 '''
