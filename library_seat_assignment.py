@@ -149,14 +149,25 @@ class Admin:
                 print("최대 좌석 수보다 자동 생성할 좌석 개수가 많습니다.")
                 continue
 
+            now_seats = library_system.get_seats()
+            # print("seats타입:",type(now_seats))
             with open(READING_ROOM_DATA_FILE, "a", newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow([room_number, max_seats])
-            with open(SEAT_DATA_FILE, "a", newline='') as f:
-                print("좌석 추가")
-                writer = csv.writer(f)
-                for generate_seats_num in range(1, auto_generate_seats+1):
-                    writer.writerow([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
+
+            for generate_seats_num in range(1, auto_generate_seats+1):
+                now_seats.append([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
+                
+            library_system.seats = now_seats
+            library_system.save_seat_data()
+
+            # with open(SEAT_DATA_FILE, "a", newline='') as f:
+            #     print("좌석 추가")
+                
+            #     writer = csv.writer(f)
+            #     for generate_seats_num in range(1, auto_generate_seats+1):
+            #         writer.writerow([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
+            #     library_system.save_seat_data()
             break 
 
 
@@ -202,7 +213,7 @@ class LibrarySystem:
                         self.seats.append([int(record[0]), int(record[1]), record[2], record[3], record[4]])
                     
     def save_seat_data(self):
-        with open(SEAT_DATA_FILE, "w", newline='') as f:
+        with open(SEAT_DATA_FILE, "w", newline='') as f: # w->a로 변경: 기존의 데이터는 남겨두고 새로운 열람실 및 좌석 추가
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
