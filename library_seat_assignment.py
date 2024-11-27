@@ -123,6 +123,14 @@ class Admin:
 
             seat_numbers = input("추가할 좌석 번호 입력 > ").split()
             now_seats = library_system.get_seats()
+            current_seats = sum(1 for seat in now_seats if seat[1] == room_number and seat[2] != "D")
+            max_seats = room_to_add[1]
+
+            # 전체 입력 유효성 검사
+            if len(seat_numbers) + current_seats > max_seats:
+                print(f"최대 좌석 추가 한도를 초과하여 좌석을 추가할 수 없습니다.")
+                break
+
             added_any = False
 
             for seat_number in seat_numbers:
@@ -131,10 +139,8 @@ class Admin:
                     continue
 
                 seat_number = int(seat_number)
-                if not library_system.max_seat_detect(1, room_number):
-                    print(f"{room_number}번 열람실의 최대 좌석 한도를 초과했습니다.")
-                    break
 
+                # 이미 존재하거나 복구 가능한 좌석 확인
                 seat_to_restore = next(
                     (seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number), None)
                 if seat_to_restore:
@@ -178,24 +184,39 @@ class Admin:
 
             seat_numbers = input("삭제할 좌석 번호 입력 > ").split()
             now_seats = library_system.get_seats()
-            removed_any = False
 
+            # 유효한 좌석 번호만 필터링
+            valid_delete_numbers = []
             for seat_number in seat_numbers:
                 if not re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number):
                     print(f"{seat_number}는 올바르지 않은 번호입니다.")
                     continue
-
                 seat_number = int(seat_number)
-                seat_to_remove = next((seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number),
-                                      None)
+                valid_delete_numbers.append(seat_number)
+
+            # 현재 열람실에서 삭제 가능한 좌석 확인
+            available_seats = [seat for seat in now_seats if seat[1] == room_number and seat[2] == "O"]
+            current_seat_count = len(available_seats)
+
+            # 삭제 가능한 좌석 중 실제 열람실에 존재하는 좌석만 필터링
+            valid_delete_count = sum(
+                1 for seat_number in valid_delete_numbers
+                if any(seat[0] == seat_number and seat[1] == room_number and seat[2] == "O" for seat in now_seats)
+            )
+
+            # 삭제 후 남는 좌석 확인
+            if current_seat_count - valid_delete_count < 1:
+                print(f"남아있는 좌석이 1개 이하이므로 더 이상 좌석을 삭제할 수 없습니다.")
+                break
+
+            removed_any = False
+
+            for seat_number in valid_delete_numbers:
+                seat_to_remove = next(
+                    (seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number), None)
 
                 if seat_to_remove:
                     if seat_to_remove[2] == "O":
-                        available_seats = [seat for seat in now_seats if seat[1] == room_number and seat[2] == "O"]
-                        if len(available_seats) <= 1:
-                            print(f"{room_number}번 열람실에 더 이상 좌석을 삭제할 수 없습니다.")
-                            break
-
                         seat_to_remove[2] = "D"
                         print(f"{seat_number}번 좌석이 삭제되었습니다.")
                         removed_any = True
@@ -211,6 +232,12 @@ class Admin:
 
             # 작업 완료 후 관리자 프롬프트로 복귀
             break
+
+    def save_reading_room_data(self):
+        """열람실 데이터 저장"""
+        with open(READING_ROOM_DATA_FILE, "w", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerows(reading_room_list)
 
 class LibrarySystem:
     def __init__(self):
