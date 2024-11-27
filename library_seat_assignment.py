@@ -247,35 +247,41 @@ class LibrarySystem:
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
-    def show_seat_status(self, room_number = 1, show_status_mode = "default"):
+    def show_seat_status(self, room_number=None, show_status_mode="default"):
+        if room_number is None:
+            room_number = int(input("조회할 열람실 번호를 입력하세요 > "))
+
         print(f"{room_number}번 열람실의 좌석 정보:")
-       
+
         seats = []
         for seat in self.seats:
             if seat[1] == room_number:
                 seats.append(seat)
-                
+
         if show_status_mode == "default":
             STATUS_ROW_LENGTH = 10
             seat_count = 0
             seat_status = ""
-            
+
             for seat in seats:
                 seat_count += 1
-                
+
                 # 로그인 중인 사용자가 이용 중인 좌석이면 ★로 표시
                 if seat[2] == "D" :
                     seat_count -= 1
                     continue
-                
-                if seat[4] == self.user.student_id:
+
+                # 사용자 정보가 있을 때만 ★ 표시
+                if self.user and isinstance(self.user, User) and seat[4] == self.user.student_id:
+                    # 로그인된 사용자가 본인의 좌석을 볼 경우 ★ 표시
                     seat_status += f"{seat[0]:2}: [★]   "
                 else:
+                    # 관리자가 조회하거나 사용자의 좌석이 아닌 경우
                     seat_status += f"{seat[0]:2}: [{seat[2]}]   "
-                
+
                 if seat_count % STATUS_ROW_LENGTH == 0:
                     seat_status += "\n"
-                
+
             print(seat_status)
             
     def reserve_seat(self):
@@ -903,9 +909,9 @@ class FileValidator:
 
                 record_count += 1
         
-        if record_count != 1:
-            print(f"ERROR : {READING_ROOM_DATA_FILE}파일에 두 개 이상의 레코드가 존재합니다!!! 프로그램을 종료합니다.")
-            sys.exit()
+        # if record_count != 1:
+        #     print(f"ERROR : {READING_ROOM_DATA_FILE}파일에 두 개 이상의 레코드가 존재합니다!!! 프로그램을 종료합니다.")
+        #     sys.exit()
 
     def validate_all_files(self):
         check_user_data_syntax = lambda record : True if (re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(USER_NAME_SYNTAX_PATTERN, record[1].strip()) and re.match(PASSWORD_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip())) else False # 사용자 마지막 로그인 시간이 필요한가?
