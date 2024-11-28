@@ -125,53 +125,48 @@ class Admin:
             else:
                 # 오류 처리: 아무 메시지도 출력하지 않고 다시 입력 받음
                 continue
+
+    # 열람실 추가
     def add_room(self):
         print("열람실 추가")
         while True:
+            load_reading_room_data()
             print("열람실 리스트 : ", reading_room_list)
-            # input_room_num = int(input("추가할 열람실 번호 입력(열람실 번호, 최대 좌석 수, 자동생성할 좌석 개수) > "))
-            # if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, input_room_num) == None:
-            #     continue # 열람실 번호가 문법 형식에 맞지 않으면 '추가할 열람실 번호 입력 > '으로 돌아감 
-            # else:
+
             new_room_info = input("추가할 열람실 정보 입력(열람실 번호, 최대 좌석 수, 자동 생성할 좌석 개수) > ")
             room_info_parts = new_room_info.split()
             if len((room_info_parts)) != 3:
                 print("세 개의 값을 입력해야 합니다.")
                 continue # 입력한 정보가 올바르지 않은 경우 
-
-            room_number, max_seats, auto_generate_seats = map(int, new_room_info.split()) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
-            default_assignment_time = '0000-10-29 10:31'
-            default_id = '201000000'
-            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) == None:
+            
+            room_number, max_seats, auto_generate_seats = map(int, room_info_parts) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) is None:
                 print("열람실 번호의 문법 규칙이 어긋났습니다.")
                 continue
+            
+            default_assignment_time = '0000-10-29 10:31'
+            default_id = '201000000'
+
             if room_number in [room[0] for room in reading_room_list]:
                 print("이미 존재하는 열람실입니다.")
                 continue 
-            if max_seats < auto_generate_seats:
+            elif max_seats < auto_generate_seats:
                 print("최대 좌석 수보다 자동 생성할 좌석 개수가 많습니다.")
                 continue
+            else:
+                now_seats = library_system.get_seats()
+                # print("seats타입:",type(now_seats))
+                with open(READING_ROOM_DATA_FILE, "a", newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([room_number, max_seats])
 
-            now_seats = library_system.get_seats()
-            # print("seats타입:",type(now_seats))
-            with open(READING_ROOM_DATA_FILE, "a", newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([room_number, max_seats])
+                for generate_seats_num in range(1, auto_generate_seats+1):
+                    now_seats.append([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
+                    
+                library_system.seats = now_seats
+                library_system.save_seat_data()
 
-            for generate_seats_num in range(1, auto_generate_seats+1):
-                now_seats.append([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
-                
-            library_system.seats = now_seats
-            library_system.save_seat_data()
-
-            # with open(SEAT_DATA_FILE, "a", newline='') as f:
-            #     print("좌석 추가")
-                
-            #     writer = csv.writer(f)
-            #     for generate_seats_num in range(1, auto_generate_seats+1):
-            #         writer.writerow([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
-            #     library_system.save_seat_data()
-            break 
+                break 
 
 
 # def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
@@ -214,7 +209,7 @@ class LibrarySystem:
                 for record in reader:
                     if len(record) == 5:
                         self.seats.append([int(record[0]), int(record[1]), record[2], record[3], record[4]])
-                    
+
     def save_seat_data(self):
         with open(SEAT_DATA_FILE, "w", newline='') as f: # w->a로 변경: 기존의 데이터는 남겨두고 새로운 열람실 및 좌석 추가
             writer = csv.writer(f)
@@ -222,7 +217,8 @@ class LibrarySystem:
 
     def show_seat_status(self, show_status_mode = "default"): # room_number 삭제
 
-        print("도서관 열람실 현황(열람실 번호, 최대 좌석 수, 현재 배정된 좌석 수) :")
+        load_reading_room_data()
+        print("도서관 열람실 현황(열람실 번호, 최대 좌석 수, 현재 배정된 좌석 수) :") # 열람실 번호, 최대 좌석 수 등 출력 
         for room in reading_room_list:
             room_number = room[0]
             max_seats = room[1]
@@ -922,7 +918,10 @@ def load_reading_room_data(record_to_entity = lambda x : [int(x[0]), int(x[1])])
         for record in reader:
             if len(record) != 0: # csv 파일에서 빈줄이 아니라면  
                 entity = record_to_entity(record) # 레코드를 딕셔너리로 변환
-                reading_room_list.append(entity)
+                # print(entity)
+
+                if not any(existing_entity == entity for existing_entity in reading_room_list): # 여러 개의 열람실이 중복 없이 추가되도록
+                    reading_room_list.append(entity)
 
     # print("debug :", reading_room_list)
 
