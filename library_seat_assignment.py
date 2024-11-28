@@ -122,35 +122,42 @@ class Admin:
             library_system.show_seat_status(room_number)
 
             seat_numbers = input("추가할 좌석 번호 입력 > ").split()
-            now_seats = library_system.get_seats()
-            current_seats = sum(1 for seat in now_seats if seat[1] == room_number and seat[2] != "D")
-            max_seats = room_to_add[1]
 
-            # 전체 입력 유효성 검사
-            if len(seat_numbers) + current_seats > max_seats:
-                print(f"최대 좌석 추가 한도를 초과하여 좌석을 추가할 수 없습니다.")
-                break
-
-            added_any = False
+            # 유효하지 않은 번호와 유효한 번호 분리
+            valid_seat_numbers = []
+            invalid_seat_numbers = []
 
             for seat_number in seat_numbers:
                 if not re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number):
-                    print(f"{seat_number}는 올바르지 않은 번호입니다.")
-                    continue
+                    invalid_seat_numbers.append(seat_number)
+                else:
+                    valid_seat_numbers.append(int(seat_number))
 
-                seat_number = int(seat_number)
+            # 한도 초과 여부 확인
+            if not library_system.max_seat_detect(valid_seat_numbers, room_number):
+                print(f"최대 좌석 추가 한도를 초과하여 좌석을 추가할 수 없습니다.")
+                return  # 한도 초과 시 관리자 프롬프트로 복귀
 
-                # 이미 존재하거나 복구 가능한 좌석 확인
+            # 유효하지 않은 번호 출력
+            for invalid_seat in invalid_seat_numbers:
+                print(f"{invalid_seat}는 올바르지 않은 번호입니다.")
+
+            now_seats = library_system.get_seats()
+            added_any = False
+
+            for seat_number in valid_seat_numbers:
                 seat_to_restore = next(
-                    (seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number), None)
+                    (seat for seat in now_seats if seat[0] == seat_number and seat[1] == room_number), None
+                )
+
                 if seat_to_restore:
-                    if seat_to_restore[2] == "D":
+                    if seat_to_restore[2] == "D":  # 삭제 상태 좌석 복구
                         seat_to_restore[2] = "O"
                         print(f"{seat_number}번 좌석이 추가되었습니다.")
+                        added_any = True
                     else:
                         print(f"이미 존재하는 좌석이기 때문에 {seat_number}번 좌석을 추가할 수 없습니다.")
-                    continue
-                else:
+                else:  # 새로운 좌석 추가
                     now_seats.append([seat_number, room_number, "O", '0000-10-29 10:31', '201000000'])
                     print(f"{seat_number}번 좌석이 추가되었습니다.")
                     added_any = True
@@ -159,7 +166,7 @@ class Admin:
                 library_system.save_seat_data()
 
             # 작업 완료 후 관리자 프롬프트로 복귀
-            break
+            return
 
     def remove_seats(self):
         """좌석 삭제 함수"""
@@ -185,29 +192,36 @@ class Admin:
             seat_numbers = input("삭제할 좌석 번호 입력 > ").split()
             now_seats = library_system.get_seats()
 
-            # 유효한 좌석 번호만 필터링
-            valid_delete_numbers = []
-            for seat_number in seat_numbers:
-                if not re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number):
-                    print(f"{seat_number}는 올바르지 않은 번호입니다.")
-                    continue
-                seat_number = int(seat_number)
-                valid_delete_numbers.append(seat_number)
-
             # 현재 열람실에서 삭제 가능한 좌석 확인
             available_seats = [seat for seat in now_seats if seat[1] == room_number and seat[2] == "O"]
             current_seat_count = len(available_seats)
 
             # 삭제 가능한 좌석 중 실제 열람실에 존재하는 좌석만 필터링
             valid_delete_count = sum(
-                1 for seat_number in valid_delete_numbers
-                if any(seat[0] == seat_number and seat[1] == room_number and seat[2] == "O" for seat in now_seats)
+                1 for seat_number in seat_numbers
+                if seat_number.isdigit() and any(
+                    seat[0] == int(seat_number) and seat[1] == room_number and seat[2] == "O"
+                    for seat in now_seats
+                )
             )
 
             # 삭제 후 남는 좌석 확인
             if current_seat_count - valid_delete_count < 1:
                 print(f"남아있는 좌석이 1개 이하이므로 더 이상 좌석을 삭제할 수 없습니다.")
                 break
+
+            # 유효하지 않은 좌석 번호 출력
+            invalid_seat_numbers = [
+                seat_number for seat_number in seat_numbers
+                if not re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number)
+            ]
+            for invalid_seat in invalid_seat_numbers:
+                print(f"{invalid_seat}는 올바르지 않은 번호입니다.")
+
+            valid_delete_numbers = [
+                int(seat_number) for seat_number in seat_numbers
+                if seat_number.isdigit()
+            ]
 
             removed_any = False
 
@@ -377,15 +391,30 @@ class LibrarySystem:
                     seat[4] = '201000000'
         self.save_seat_data()
 
-    def max_seat_detect(self, seat_number: int=1, room_number: int=1 ) -> bool:
-        
+    def max_seat_detect(self, seat_numbers: list[int], room_number: int) -> bool:
+        """
+        열람실 최대 좌석 수 초과 여부를 확인하는 함수.
+        :param seat_numbers: 추가하려는 좌석 번호 리스트
+        :param room_number: 해당 열람실 번호
+        :return: True면 한도 내, False면 한도 초과
+        """
         max_seat_limit = next((limit[1] for limit in reading_room_list if limit[0] == room_number), None)
-        current_seat_count = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
-        total_number = current_seat_count + seat_number
-        if total_number <= max_seat_limit:
-            return True
-        else:
+        if max_seat_limit is None:
             return False
+
+        # 현재 좌석 수 (삭제 상태 좌석은 제외)
+        current_seat_count = sum(1 for seat in self.seats if seat[1] == room_number and seat[2] != "D")
+
+        # 추가 가능한 좌석 번호만 계산
+        valid_new_seat_count = sum(
+            1 for seat_number in seat_numbers
+            if not any(seat[0] == seat_number and seat[1] == room_number for seat in self.seats)
+            or any(seat[0] == seat_number and seat[1] == room_number and seat[2] == "D" for seat in self.seats)
+        )
+
+        # 총 좌석 수 계산
+        total_seat_count = current_seat_count + valid_new_seat_count
+        return total_seat_count <= max_seat_limit
     
     def check_four_day_consecutive_usage(self) -> bool:
         ## ** 재설계문서 [수정 필요] : 내용 약간 수정 필요
@@ -761,6 +790,8 @@ class AdminPrompt:
 
     def handle_admin_input(self):
         """관리자 입력을 처리하는 함수"""
+         # 관리자가 로그인하면 사용자 정보 초기화
+        library_system.user = None  # 사용자 정보 초기화
         while True:
             self.display_admin_menu()
             admin_input = input("선택하세요 > ")
