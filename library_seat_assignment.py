@@ -142,6 +142,9 @@ class Admin:
             room_number, max_seats, auto_generate_seats = map(int, new_room_info.split()) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
             default_assignment_time = '0000-10-29 10:31'
             default_id = '201000000'
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) == None:
+                print("열람실 번호의 문법 규칙이 어긋났습니다.")
+                continue
             if room_number in [room[0] for room in reading_room_list]:
                 print("이미 존재하는 열람실입니다.")
                 continue 
