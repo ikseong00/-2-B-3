@@ -128,7 +128,7 @@ class Admin:
 
     # 열람실 추가
     def add_room(self):
-        print("열람실 추가")
+        # print("열람실 추가")
         while True:
             load_reading_room_data()
             print("열람실 리스트 : ", reading_room_list)
@@ -140,10 +140,10 @@ class Admin:
                 continue # 입력한 정보가 올바르지 않은 경우 
             
             room_number, max_seats, auto_generate_seats = map(int, room_info_parts) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
-            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) is None:
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) == None:
                 print("열람실 번호의 문법 규칙이 어긋났습니다.")
                 continue
-            
+
             default_assignment_time = '0000-10-29 10:31'
             default_id = '201000000'
 
@@ -167,6 +167,37 @@ class Admin:
                 library_system.save_seat_data()
 
                 break 
+    
+    def remove_room(self):
+        global reading_room_list
+        # 열람실 삭제
+        while True:
+            load_reading_room_data()
+            print("열람실 리스트 : ", reading_room_list)
+            remove_room_num = int(input("삭제할 열람실 번호 입력 > ")) 
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(remove_room_num)) == None:
+                print("열람실 번호의 문법 문법 규칙이 어긋났습니다.")
+                continue 
+            library_system.load_seat_data()
+            seats = library_system.get_seats()
+            exists = any(room_list[0] == remove_room_num for room_list in reading_room_list) # 사용자에게 입력받은 열람실 번호가 존재하는 지 확인 
+            if not exists:
+                print("해당 열람실은 존재하지 않습니다.")
+                break
+            for seat in seats:
+                if seat[1]==remove_room_num:
+                    print("현재 사용 중인 좌석이 존재합니다.")
+                    break
+            else:
+                with open(READING_ROOM_DATA_FILE, "r") as f:
+                    reader = csv.reader(f)
+                    reading_room_list = [[int(row[0].strip()), int(row[1].strip())] for row in reader if int(row[0].strip()) != remove_room_num] 
+                with open(READING_ROOM_DATA_FILE, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerows(reading_room_list)
+                break
+                    # 전역변수 readint_room_list에서 remove_room_num 열람실 제외
+
 
 
 # def print_aligned_seat_status(seats, user_id, row_length = 10):  # 좌석 상태 출력 형태를 조정 (1줄에 10개씩 표시)
@@ -218,7 +249,7 @@ class LibrarySystem:
     def show_seat_status(self, show_status_mode = "default"): # room_number 삭제
 
         load_reading_room_data()
-        print("도서관 열람실 현황(열람실 번호, 최대 좌석 수, 현재 배정된 좌석 수) :") # 열람실 번호, 최대 좌석 수 등 출력 
+        print("도서관 열람실 현황(열람실 번호, 최대 좌석 수, 선택 가능한 좌석 수) :") # 열람실 번호, 최대 좌석 수 등 출력 
         for room in reading_room_list:
             room_number = room[0]
             max_seats = room[1]
@@ -918,8 +949,6 @@ def load_reading_room_data(record_to_entity = lambda x : [int(x[0]), int(x[1])])
         for record in reader:
             if len(record) != 0: # csv 파일에서 빈줄이 아니라면  
                 entity = record_to_entity(record) # 레코드를 딕셔너리로 변환
-                # print(entity)
-
                 if not any(existing_entity == entity for existing_entity in reading_room_list): # 여러 개의 열람실이 중복 없이 추가되도록
                     reading_room_list.append(entity)
 
