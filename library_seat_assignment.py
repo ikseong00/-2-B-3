@@ -181,6 +181,79 @@ class Admin:
                 print("유효한 열람실 번호를 입력하세요.")
                 continue
 
+
+    # 열람실 추가
+    def add_room(self):
+        # print("열람실 추가")
+        while True:
+            load_reading_room_data()
+            print("열람실 리스트 : ", reading_room_list)
+
+            new_room_info = input("추가할 열람실 정보 입력(열람실 번호, 최대 좌석 수, 자동 생성할 좌석 개수) > ")
+            room_info_parts = new_room_info.split()
+            if len((room_info_parts)) != 3:
+                print("세 개의 값을 입력해야 합니다.")
+                continue # 입력한 정보가 올바르지 않은 경우 
+            
+            room_number, max_seats, auto_generate_seats = map(int, room_info_parts) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) == None:
+                print("열람실 번호의 문법 규칙이 어긋났습니다.")
+                continue
+
+            default_assignment_time = '0000-10-29 10:31'
+            default_id = '201000000'
+
+            if room_number in [room[0] for room in reading_room_list]:
+                print("이미 존재하는 열람실입니다.")
+                continue 
+            elif max_seats < auto_generate_seats:
+                print("최대 좌석 수보다 자동 생성할 좌석 개수가 많습니다.")
+                continue
+            else:
+                now_seats = library_system.get_seats()
+                # print("seats타입:",type(now_seats))
+                with open(READING_ROOM_DATA_FILE, "a", newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([room_number, max_seats])
+
+                for generate_seats_num in range(1, auto_generate_seats+1):
+                    now_seats.append([generate_seats_num, room_number, 'O', default_assignment_time, default_id])
+                    
+                library_system.seats = now_seats
+                library_system.save_seat_data()
+
+                break 
+    
+    def remove_room(self):
+        global reading_room_list
+        # 열람실 삭제
+        while True:
+            load_reading_room_data()
+            print("열람실 리스트 : ", reading_room_list)
+            remove_room_num = int(input("삭제할 열람실 번호 입력 > ")) 
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(remove_room_num)) == None:
+                print("열람실 번호의 문법 문법 규칙이 어긋났습니다.")
+                continue 
+            library_system.load_seat_data()
+            seats = library_system.get_seats()
+            exists = any(room_list[0] == remove_room_num for room_list in reading_room_list) # 사용자에게 입력받은 열람실 번호가 존재하는 지 확인 
+            if not exists:
+                print("해당 열람실은 존재하지 않습니다.")
+                break
+            for seat in seats:
+                if seat[1]==remove_room_num:
+                    print("현재 사용 중인 좌석이 존재합니다.")
+                    break
+            else:
+                with open(READING_ROOM_DATA_FILE, "r") as f:
+                    reader = csv.reader(f)
+                    reading_room_list = [[int(row[0].strip()), int(row[1].strip())] for row in reader if int(row[0].strip()) != remove_room_num] 
+                with open(READING_ROOM_DATA_FILE, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerows(reading_room_list)
+                break
+                    # 전역변수 readint_room_list에서 remove_room_num 열람실 제외
+
             room_number = int(room_number)
             room_to_remove = next((room for room in reading_room_list if room[0] == room_number), None)
             if not room_to_remove:
@@ -256,34 +329,41 @@ class Admin:
 class LibrarySystem:
     def __init__(self):
         self.seats = []
+        self.librarys = [] # 여러개의 열람실 정보를 저장할 배열 
         self.user = None
         self.load_seat_data()
 
     def get_seats(self):
         return self.seats
+    
 
-    def load_seat_data(self):
+    def load_seat_data(self): 
         if os.path.exists(SEAT_DATA_FILE):
             with open(SEAT_DATA_FILE, "r") as f:
                 reader = csv.reader(f)
                 for record in reader:
-                    if len(record) != 0:
+                    if len(record) == 5:
                         self.seats.append([int(record[0]), int(record[1]), record[2], record[3], record[4]])
 
     def save_seat_data(self):
-        with open(SEAT_DATA_FILE, "w", newline='') as f:
+        with open(SEAT_DATA_FILE, "w", newline='') as f: # w->a로 변경: 기존의 데이터는 남겨두고 새로운 열람실 및 좌석 추가
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
-    def show_seat_status(self, room_number=None, show_status_mode="default"):
-        if room_number is None:
-            room_number = int(input("조회할 열람실 번호를 입력하세요 > "))
+    def show_seat_status(self, show_status_mode = "default"): # room_number 삭제
 
-        print(f"{room_number}번 열람실의 좌석 정보:")
-
+        load_reading_room_data()
+        print("도서관 열람실 현황(열람실 번호, 최대 좌석 수, 선택 가능한 좌석 수) :") # 열람실 번호, 최대 좌석 수 등 출력 
+        for room in reading_room_list:
+            room_number = room[0]
+            max_seats = room[1]
+            current_seats = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
+            print(f"[{room_number}, {max_seats}, {current_seats}]")
+        input_room_number = int(input("좌석 조회할 열람실을 선택하세요 > "))
+       
         seats = []
         for seat in self.seats:
-            if seat[1] == room_number:
+            if seat[1] == input_room_number:
                 seats.append(seat)
 
         if show_status_mode == "default":
@@ -782,11 +862,10 @@ class AdminPrompt:
         print("관리자용 프롬프트")
         print("1. 좌석 추가")
         print("2. 좌석 삭제")
-        print("3. 열람실 추가")
-        print("4. 열람실 삭제")
+        print("3. 열람실 추가") # 2A구현을 위한 프롬프트 변경
+        print("4. 열람실 삭제") # 2A 
         print("5. 열람실 최대 좌석 수 변경")
         print("6. 관리자 로그아웃(종료)")
-
 
     def handle_admin_input(self):
         """관리자 입력을 처리하는 함수"""
@@ -796,7 +875,8 @@ class AdminPrompt:
             self.display_admin_menu()
             admin_input = input("선택하세요 > ")
 
-            # 입력이 1, 2, 3, 4, 5, 6으로만 구성되어 있는지 확인 (공백 및 기타 문자 허용 안함)
+            # 입력이 1, 2, 3으로만 구성되어 있는지 확인 (공백 및 기타 문자 허용 안함)
+
             if admin_input in ["1", "2", "3", "4", "5", "6"]:
                 choice = int(admin_input)
                 if choice == 1:
@@ -804,9 +884,9 @@ class AdminPrompt:
                 elif choice == 2:
                     self.admin.remove_seats()  # 좌석 삭제 기능
                 elif choice == 3:
-                    self.admin.add_reading_room()  # 열람실 추가 기능
+                    self.admin.add_room() # 열람실 추가 기능
                 elif choice == 4:
-                    self.admin.remove_reading_room()  # 열람실 삭제 기능
+                    self.admin.remove_room() # 열람실 삭제 기능 
                 elif choice == 5:
                     self.admin.change_reading_room_limit()  # 최대 좌석 수 변경
                 elif choice == 6:
@@ -1015,6 +1095,8 @@ class FileValidator:
         # if record_count != 1:
         #     print(f"ERROR : {READING_ROOM_DATA_FILE}파일에 두 개 이상의 레코드가 존재합니다!!! 프로그램을 종료합니다.")
         #     sys.exit()
+        # 열람실이 여러개 이므로 예외 처리 삭제 
+
 
     def validate_all_files(self):
         check_user_data_syntax = lambda record : True if (re.match(USER_ID_SYNTAX_PATTERN, record[0].strip()) and re.match(USER_NAME_SYNTAX_PATTERN, record[1].strip()) and re.match(PASSWORD_SYNTAX_PATTERN, record[2].strip()) and re.match(TIME_SYNTAX_PATTERN, record[3].strip())) else False # 사용자 마지막 로그인 시간이 필요한가?
@@ -1051,7 +1133,8 @@ def load_reading_room_data(record_to_entity = lambda x : [int(x[0]), int(x[1])])
         for record in reader:
             if len(record) != 0: # csv 파일에서 빈줄이 아니라면  
                 entity = record_to_entity(record) # 레코드를 딕셔너리로 변환
-                reading_room_list.append(entity)
+                if not any(existing_entity == entity for existing_entity in reading_room_list): # 여러 개의 열람실이 중복 없이 추가되도록
+                    reading_room_list.append(entity)
 
     # print("debug :", reading_room_list)
 
