@@ -405,6 +405,14 @@ class LibrarySystem:
             print(seat_status)
             
     def reserve_seat(self):
+        '''
+        요구사항 A : 열람실 선택 추가
+        요구사항 D
+        요구사항 E
+        요구사항 F
+        '''
+        global reading_room_list
+
         if self.check_four_day_consecutive_usage():
             return
         if self.check_three_times_usage_per_day(): #### 요구사항 2E 구현 완료
@@ -418,6 +426,25 @@ class LibrarySystem:
             if self.user.student_id == seat[4]:
                 print("이용중인 좌석이 있습니다.\n")
                 return
+        
+        print("도서관 열람실 현황:")
+        for room in reading_room_list:
+            print(f"[{room[0]}, {room[1]}]")
+
+        while True:
+            reading_room_number = input("이용할 열람실을 선택하세요 > ")
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, reading_room_number) == None:
+                continue
+
+            reading_room_number = int(reading_room_number)
+            # print(f"debug : {reading_room_number}")
+            room_exists = False
+            for room in reading_room_list:
+                if room[0] == reading_room_number:
+                    room_exists = True
+            if room_exists:   
+                break
+
         while True:
             seat_number = input("좌석번호 입력> ")
             if re.match(SEAT_NUMBER_SYNTAX_PATTERN, seat_number) == None:
@@ -426,7 +453,7 @@ class LibrarySystem:
             # 좌석 정보 확인
             seat_number = int(seat_number)
             for seat in self.seats:
-                if seat[0] == seat_number:
+                if seat[0] == seat_number and seat[1] == reading_room_number:
                     if seat[2] == 'O':
                         seat[2] = 'X'
                         seat[3] = recent_input_time
