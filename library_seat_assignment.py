@@ -738,7 +738,7 @@ class LoginPrompt:
         while True:
             while True:
                 user_id = input("학번 9자리를 입력하세요 > ").strip()
-                if re.match(USER_ID_SYNTAX_PATTERN, user_id):
+                if re.match(USER_ID_SYNTAX_PATTERN, user_id) and self.validate_user_id_prefix(user_id):
                     break
             while True:
                 user_name = input("이름을 입력하세요 > ").strip()
@@ -767,6 +767,30 @@ class LoginPrompt:
                 print("회원가입이 완료되었습니다")
                 print()
                 break
+
+    def validate_user_id_prefix(self, user_id):
+        '''
+        12/2 2차 재설계 문서 반영 전
+        '''
+        year = int(user_id[:4])
+
+        # print(f"debug : year {year}")
+        
+        years = []
+        with open(INPUT_TIME_FILE, "r") as f:
+            reader = csv.reader(f)
+            for record in reader:
+                if record != []:
+                    years.append(int(record[0][0:4]))
+        
+        recent_year = max(years)
+
+        # print(f"debug : years {years}")
+        # print(f"debug : recent_year {recent_year}")
+
+        if year <= recent_year:
+            return True
+        return False
 
     def login_user(self):
         '''
