@@ -17,7 +17,6 @@ TIME_SYNTAX_PATTERN = r"[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1]) (2[0
 SEAT_STATUS_SYNTAX_PATTERN="^[OXD]$"
 READING_ROOM_NUMBER_SYNTAX_PATTERN = r'^[1-9]\d*$'
 READING_ROOM_SEAT_LIMIT_SYNTAX_PATTERN = r'^[1-9]\d*$'
-ASSIGNMENT_LOG_RECORD_TYPE_SYNTAX_PATTERN = r'^(reserve|return)$'
 
 ADMIN_DATA_FILE = "libary_admin_data.csv" 
 USER_DATA_FILE = "libary_user_data.csv"
@@ -27,8 +26,11 @@ SEAT_ASSIGNMENT_LOG_FILE = "library_seat_assignment_log.csv"
 READING_ROOM_DATA_FILE = "library_reading_room_data.csv"
  
 ### 2차 재설계 과정에서 추가된 전역 변수 ###
-RESERVE = "reserve"
-RETURN = "return"
+ASSIGNMENT_LOG_RECORD_TYPE_SYNTAX_PATTERN = r'^(reserve|return)$' ### 요구사항 F 
+RESERVE = "reserve" ### 요구사항 F 
+RETURN = "return" ### 요구사항 F 
+
+MAX_CUMULATIVE_USAGE_TIME_PER_DAY = 5 ### 요구사항 F. 이변수로 하루 5시간 이하로 이용할 수 있도록 제한
 
 max_uses_per_day = 3           ### 요구사항 E [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
 max_recent_usage_day = 5       ### 요구사항 D [3차 요구사항 대비] 전역 변수로 관리해서 관리자가 수정할 수 있음
@@ -399,6 +401,8 @@ class LibrarySystem:
             return
         if self.validate_recent_seat_usage(): ### 요구사항 2D 구현 완료
             return
+        if self.check_today_user_usage_time(self.user.student_id): ## 요구사항 2F 구현
+            return
         
         for seat in self.seats:
             if self.user.student_id == seat[4]:
@@ -457,11 +461,29 @@ class LibrarySystem:
         
     def check_expired_reservations(self, now_time): # 통합 중 수정 : 누락된 인자 추가
         current_time = datetime.datetime.strptime(recent_input_time, "%Y-%m-%d %H:%M")
-        MAX_USAGE_TIME = 3*60*60 #이변수로 자동반납 시간 결정 가능.
+        MAX_USAGE_TIME = 3*60*60  # 이변수로 3시간 후 자동반납 시간 결정 가능. 
         for seat in self.seats:
             if seat[2] == 'X' and seat[3] != '':
                 reserve_time = datetime.datetime.strptime(seat[3], "%Y-%m-%d %H:%M")
-                if (current_time - reserve_time).total_seconds() > MAX_USAGE_TIME: 
+                user_id = seat[4]
+                usage_seconds_at_reserve_date = self.get_user_usage_time_at_date(user_id, seat[3]) # 배정 당일 완료된 사용 시간
+                enlapsed_seconds = (current_time - reserve_time).total_seconds() # 배정 시간으로부터 경과된 시간
+                
+                if enlapsed_seconds + usage_seconds_at_reserve_date >= MAX_CUMULATIVE_USAGE_TIME_PER_DAY * 60 * 60 and MAX_CUMULATIVE_USAGE_TIME_PER_DAY * 60 * 60 - usage_seconds_at_reserve_date <= MAX_USAGE_TIME: # 하루 사용시간이 2시간을 넘었으며 배정 받은지 5시간이 지났으면
+                    #print("debug : usage_seconds_at_reserve_date:", usage_seconds_at_reserve_date,", enlapsed_seconds:" ,enlapsed_seconds)
+
+                    with open(SEAT_ASSIGNMENT_LOG_FILE, "a") as f:
+                        writer = csv.writer(f)
+                        remaining_seconds = MAX_CUMULATIVE_USAGE_TIME_PER_DAY * 60 * 60 - usage_seconds_at_reserve_date 
+                        returned_time = reserve_time + datetime.timedelta(seconds=remaining_seconds) # 배정 시간에 남은 시간을 추가하여 반납 시간으로 설정
+                        writer.writerow([seat[4], seat[0], seat[1], returned_time.strftime("%Y-%m-%d %H:%M"), RETURN])
+                    seat[2] = 'O'
+                    seat[3] = '0000-10-29 10:31'
+                    seat[4] = '201000000'
+                    
+                elif (current_time - reserve_time).total_seconds() >= MAX_USAGE_TIME: # 배정 받은지 3시간이 지났으면
+                    #print("debug : 3시간 초과 여부 경과 시간 = ", (current_time - reserve_time).total_seconds())
+                    
                     with open(SEAT_ASSIGNMENT_LOG_FILE, "a") as f:
                         writer = csv.writer(f)
                         returned_time = reserve_time + datetime.timedelta(hours=3)
@@ -469,6 +491,7 @@ class LibrarySystem:
                     seat[2] = 'O'
                     seat[3] = '0000-10-29 10:31'
                     seat[4] = '201000000'
+
         self.save_seat_data()
 
     def max_seat_detect(self, seat_numbers: list[int], room_number: int) -> bool:
@@ -581,6 +604,49 @@ class LibrarySystem:
             print("연속된 7일 기간 내에 5일을 초과하여 좌석을 배정할 수 없습니다.")
             return True
         return False
+
+    def check_today_user_usage_time(self, user_id):
+        '''
+        요구사항 F
+        오늘 하루 5시간 넘게 사용했는지 확인하는 함수
+        '''
+        if self.get_user_usage_time_at_date(user_id, recent_input_time) >= MAX_CUMULATIVE_USAGE_TIME_PER_DAY * 60 * 60: ## 요구사항 2F 구현
+            print("하루에 좌석을 5시간만 이용 가능...")
+            return True
+        return False
+
+    def get_user_usage_time_at_date(self, user_id, time_to_check):
+        '''
+        요구사항 F
+        
+        특정 일에 반납이 완료된 사용에 대한 시간의 총합을 계산하는 함수
+        '''
+        date_to_check = datetime.datetime.strptime(time_to_check, "%Y-%m-%d %H:%M").date()
+        total_usage_seconds = 0 
+
+        # 좌석 기록 파일 읽는 작업.
+        with open(SEAT_ASSIGNMENT_LOG_FILE, "r") as f:
+            reader = csv.reader(f)
+            records = [record for record in reader if record]
+
+        # 사용자의 기록 추출
+        user_records = [
+            record for record in records
+            if record[0] == user_id
+        ]
+
+        start_time = None  
+        for record in user_records:
+            record_date = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M").date()
+            if record_date == date_to_check:
+                if record[4] == RESERVE:
+                    start_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M")
+                elif record[4] == RETURN and start_time:
+                    end_time = datetime.datetime.strptime(record[3], "%Y-%m-%d %H:%M")
+                    total_usage_seconds += (end_time - start_time).total_seconds()  # 초 단위로 누적하도록 함
+                    start_time = None 
+
+        return total_usage_seconds
 
 class LoginPrompt:
     '''
@@ -740,7 +806,7 @@ class LoginPrompt:
                         record[3] = recent_input_time
                         user_name = record[1]
                         login_succeeded = True
-
+                             
                 user_records.append(record)
 
         if login_succeeded:
