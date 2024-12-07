@@ -217,6 +217,7 @@ class Admin:
         # 열람실 삭제
         while True:
             load_reading_room_data()
+            current_seats = library_system.get_seats()
             print("열람실 리스트 : ", reading_room_list)
             remove_room_num = int(input("삭제할 열람실 번호 입력 > ")) 
             if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(remove_room_num)) == None:
@@ -240,9 +241,15 @@ class Admin:
                 with open(READING_ROOM_DATA_FILE, "w", newline="") as f:
                     writer = csv.writer(f)
                     writer.writerows(reading_room_list)
+
+                library_system.seats = list({(seat[0], seat[1], seat[2], seat[3]): seat for seat in current_seats if seat[1] != remove_room_num}.values())
+                library_system.save_seat_data()
+
+                break
                 
                 ###### after merge : 좌석 정보 파일에서 좌석 데이터 삭제 필요!!!! 
-                break
+            
+            
                     # 전역변수 readint_room_list에서 remove_room_num 열람실 제외
 
 
