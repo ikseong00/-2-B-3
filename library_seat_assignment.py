@@ -461,6 +461,11 @@ class LibrarySystem:
 
         ##### 1208 추가 사항 ######
 
+        '''
+        좌석 배정, 반납 : 프롬프트
+        로그아웃 : 프롬프트
+        '''
+
         while True:
             reading_room_number = input("이용할 열람실을 선택하세요 > ")
             if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, reading_room_number) == None:
@@ -474,6 +479,8 @@ class LibrarySystem:
                     room_exists = True
             if room_exists:   
                 break
+
+        print("좌석배정")
 
         while True:
             seat_number = input("좌석번호 입력> ")
@@ -501,6 +508,7 @@ class LibrarySystem:
 
 
     def cancel_reservation(self):
+        print("좌석 반납")
         cancel = any(seat[4] == self.user.student_id and seat[2] == 'X' for seat in self.seats)
         if cancel:
             while True:
@@ -997,12 +1005,14 @@ class UserPrompt:
 
 
     def logout_user(self):
+        print("사용자 로그아웃(종료)")
         while True:
             confirm = input("로그아웃 하시겠습니까?(Y/N) > ")
             if confirm in ["Y", "N"]:
                 if confirm == "Y":
                     return True
-                else: return False
+                else: 
+                    return False
             else:
                 continue
 
