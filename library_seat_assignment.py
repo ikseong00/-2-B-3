@@ -209,8 +209,6 @@ class Admin:
                 library_system.seats = now_seats
                 library_system.save_seat_data()
 
-                reading_room_list.append([room_number, max_seats]) 
-
                 break 
     
     def remove_room(self):
