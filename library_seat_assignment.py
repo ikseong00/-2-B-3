@@ -209,6 +209,8 @@ class Admin:
                 library_system.seats = now_seats
                 library_system.save_seat_data()
 
+                reading_room_list.append([room_number, max_seats]) 
+
                 break 
     
     def remove_room(self):
@@ -363,9 +365,7 @@ class LibrarySystem:
             writer = csv.writer(f)
             writer.writerows(self.seats)
 
-    def show_seat_status(self, room_number=None, show_status_mode = "default"): # room_number 삭
-
-        ################## after merge : 충돌로 인해서 수정 시작 #################
+    def show_seat_status(self, room_number=None, show_status_mode = "default"):
 
         if room_number == None:
             load_reading_room_data()
@@ -396,8 +396,6 @@ class LibrarySystem:
         for seat in self.seats:
             if seat[1] == room_number:
                 seats.append(seat)
-
-        ################## after merge : 충돌로 인해서 수정 #################
 
         if show_status_mode == "default":
             STATUS_ROW_LENGTH = 10
