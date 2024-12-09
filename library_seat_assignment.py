@@ -375,8 +375,21 @@ class LibrarySystem:
                 max_seats = room[1]
                 current_seats = sum(1 for seat in library_system.get_seats() if seat[1] == room_number and seat[2] != "D")
                 print(f"[{room_number}, {max_seats}, {current_seats}]")
-            room_number = int(input("좌석 조회할 열람실을 선택하세요 > "))
-        
+            
+            room_number = input("좌석 조회할 열람실을 선택하세요 > ")
+
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, room_number) == None: ## 12/09 추가
+                return
+            
+            room_number = int(room_number)
+            room_exists = False
+            for room in reading_room_list:
+                if room[0] == room_number:
+                    room_exists = True
+            
+            if not room_exists:
+                return
+            
         print(f"{room_number}번 열람실의 좌석 정보:")
 
         seats = []
@@ -435,9 +448,22 @@ class LibrarySystem:
                 print("이용중인 좌석이 있습니다.\n")
                 return
         
-        print("도서관 열람실 현황:")
+        ##### 1208 추가 사항 ######
+        reading_room_status = [] 
         for room in reading_room_list:
-            print(f"[{room[0]}, {room[1]}]")
+            seat_count = 0
+            with open(SEAT_DATA_FILE, "r") as f:
+                reader = csv.reader(f)
+                for record in reader:
+                    if record != [] and int(record[1]) == room[0]:
+                        seat_count +=1
+            reading_room_status.append({"room_num": room[0], "seat_num" : seat_count})
+        
+        print("도서관 열람실 현황:")
+        for status in reading_room_status:
+            print(f"[{status["room_num"]}, {status["seat_num"]}]")
+
+        ##### 1208 추가 사항 ######
 
         while True:
             reading_room_number = input("이용할 열람실을 선택하세요 > ")
