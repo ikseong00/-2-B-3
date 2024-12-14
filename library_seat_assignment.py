@@ -180,22 +180,23 @@ class Admin:
             new_room_info = input("추가할 열람실 정보 입력(열람실 번호, 최대 좌석 수, 자동 생성할 좌석 개수) > ")
             room_info_parts = new_room_info.split()
             if len((room_info_parts)) != 3:
-                return
-            ### 숫자가 아닌 문자를 입력했을 때 오류 처리 
-            try:
-                room_number, max_seats, auto_generate_seats = map(int, room_info_parts)
-            except ValueError:
-                return # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
+                print("세 개의 값을 입력해야 합니다.")
+                continue # 입력한 정보가 올바르지 않은 경우 
+            
+            room_number, max_seats, auto_generate_seats = map(int, room_info_parts) # 입력받은 str을 공백 기준으로 분리하고 각 정수형 변수에 저장 
             if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(room_number)) == None:
-                return
+                print("열람실 번호의 문법 규칙이 어긋났습니다.")
+                continue
 
             default_assignment_time = '0000-10-29 10:31'
             default_id = '201000000'
 
             if room_number in [room[0] for room in reading_room_list]:
-                return
+                print("이미 존재하는 열람실입니다.")
+                continue 
             elif max_seats < auto_generate_seats:
-                return
+                print("최대 좌석 수보다 자동 생성할 좌석 개수가 많습니다.")
+                continue
             else:
                 now_seats = library_system.get_seats()
                 ### 불필요한 로직 제거, save_reading_room_data() 사용
@@ -217,15 +218,16 @@ class Admin:
             load_reading_room_data()
             now_seats = library_system.get_seats() ## 변수명 변경 
             print("열람실 리스트 : ", reading_room_list)
-            remove_room_num = input("삭제할 열람실 번호 입력 > ")
-            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, remove_room_num) == None:
-                return
-            remove_room_num=int(remove_room_num) ### 형 변환 
+            remove_room_num = int(input("삭제할 열람실 번호 입력 > ")) 
+            if re.match(READING_ROOM_NUMBER_SYNTAX_PATTERN, str(remove_room_num)) == None:
+                print("열람실 번호의 문법 문법 규칙이 어긋났습니다.")
+                continue 
             library_system.load_seat_data()
             seats = library_system.get_seats()
             exists = any(room_list[0] == remove_room_num for room_list in reading_room_list) # 사용자에게 입력받은 열람실 번호가 존재하는 지 확인 
             if not exists:
-                return
+                print("해당 열람실은 존재하지 않습니다.")
+                break
             for seat in seats:
                 ###### after merge :  조건문 수정
                 if seat[1]==remove_room_num and seat[2] == "X": 
